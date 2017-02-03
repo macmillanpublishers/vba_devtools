@@ -4,3 +4,6 @@
 [submodule "VBA-Dictionary"]
 	path = VBA-Dictionary
 	url = https://github.com/macmillanpublishers/VBA-Dictionary.git
+[submodule "vba_utilities"]
+	path = vba_utilities
+	url = https://github.com/macmillanpublishers/vba_utilities
