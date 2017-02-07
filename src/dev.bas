@@ -2,16 +2,9 @@ Attribute VB_Name = "dev"
 Option Explicit
 Option Base 1
 
-
-' by Erica Warren - erica.warren@macmillan.com
-' Good advice from here: http://www.cpearson.com/excel/vbe.aspx
-' And here: https://www.experts-exchange.com/articles/1336/Using-Regular-Expressions-in-Visual-Basic-for-Applications-and-Visual-Basic-6.html
-
 ' ====== USE ==================================================================
 ' For help using git with VBA development.
-' Save project template in Word STARTUP directory. Procedures designed to be
-' run from a .ps1 file, which passes the current working directory, so you
-' can run these from the command line.
+' See docs about devtools installation and command-line scripts.
 
 ' ===== DEPENDENCIES ==========================================================
 ' VBA code modules that should be tracked in current repo must be added to git
@@ -33,8 +26,116 @@ Option Base 1
 
 ' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 '      PUBLIC PROCEDURES
+' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+' ===== VbaStatus =============================================================
+' Designed to be called from an external script that will pass working dir. If
+' this all goes according to plan, you can run this instead of git status, and
+' all local files/code will be exported to repo.
+
+' RETURNS: Boolean
+' True = exporting and copying was successful
+' False = not successful
+
+' TODO:
+' * Return more detailed info.
+
+Public Function VbaStatus(p_WorkingDir As String) As Boolean
+  Dim objStatusRepo As Repository
+  Set objStatusRepo = Factory.CreateRepository(Path:=p_WorkingDir)
+  VbaStatus = objStatusRepo.UpdateRepo
+End Function
+
+' ===== VbaCheckout ===========================================================
+' Macro doc files is in two places ("repo" and "local"), this copies one to
+' overwrite the other. Designed to be called by external script. Right now need
+' to use AFTER git checkout and git pull, but might be able to incorporate later.
+
+' PARAMS
+' p_WorkingDir[String]: script must pass working directory
+
+' RETURNS
+' True = successful
+' False = unsuccessful
+
+Public Function VbaCheckout(p_WorkingDir As String) As Boolean
+  Dim objCheckoutRepo As Repository
+  Set objCheckoutRepo = Factory.CreateRepository(p_WorkingDir)
+  
+' Checkout means we changed file in repo, need to copy TO local
+  objCheckoutRepo.SyncDocs p_RepositoryIsDestination:=False
+  
+End Function
+
+' ===== VbaMerge ==============================================================
+' Call from a script that passes working directory. Right now you still need to
+' run git merge first, then run this macro after.
+
+' PARAMS
+' p_WorkingDir[String]: current working directory (should be repo)
+
+' RETURNS
+' True = successful
+' False = not
+
+' TODO
+' incorporate actual git merge command
+
+Public Function VbaMerge(p_WorkingDir As String) As Boolean
+
+End Function
 
 
+
+
+
+
+
+
+
+
+' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+'      PRIVATE PROCEDURES
+' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+' ===== OpenValidDoc ==========================================================
+' DESCRIPTION
+' Validates that file exists, is a Word document or template, then checks if the
+' file is already open. If not open, it opens it. If it was open, saves it.
+
+' PARAMS
+' p_FullPath[String]: Full path to the file in question
+
+' RETURNS: Boolean
+' True = File was already open, and now it's saved
+' False = File was originally closed, now it's open
+
+Private Function OpenValidDoc(p_FullPath As String) As Boolean
+
+' Get our document ready to go.
+  Dim docLocalDoc As Document
+  Dim blnOrigDocOpen As Boolean
+  
+' Validation: file exists, is a Word doc, is open (all in same function)
+  blnOrigDocOpen = Utils.IsOpen(DocPath:=p_FullPath)
+  
+' Set up doc
+  If blnOrigDocOpen = False Then
+  ' Open it if it was closed
+    Set docLocalDoc = Documents.Open(FileName:=p_WordMacroDoc)
+  Else
+    Set docLocalDoc = Documents(p_WordMacroDoc)
+    docLocalDoc.Save  ' If was open, maybe wasn't saved, so save here.
+  End If
+  
+  OpenValidDoc = blnOrigDocOpen
+
+End Function
+
+
+
+
+
+ ' EARLIER STUFF, NOT SURE WHAT I WAS UP TO
 ' ===== textExport ============================================================
 ' Testing ExportMOdulesToRepo sub. Will ultimatley be called from ps1.
 Sub testExport()
@@ -70,101 +171,6 @@ End Function
 
 Sub ExportAllModules()
     ' Exports all VBA modules in all open templates to local git repo
-    
-    ' Cycle through each open document
-    Dim oDoc As Document
-    Dim strExtension As String
-    Dim oProject As VBIDE.VBProject
-    Dim oModule As VBIDE.VBComponent
-    Dim strTemplateModules As String
-    Dim strDependencies As String
-    Dim strDepFiles As String
-    Dim strEachFile As String
-    Dim strRepoPath As String
-    Dim openTemplates As Collection
-    Set openTemplates = New Collection
-    
-    For Each oDoc In Documents
-        Debug.Print oDoc.Name
-        ' Separate the name and the extension of the document
-        strExtension = Right(oDoc.Name, Len(oDoc.Name) - _
-            (InStrRev(oDoc.Name, ".") - 1))
-        
-        ' We just want to work with .dotm and .docm (others can't have macros)
-        If strExtension = ".dotm" Or strExtension = ".docm" Then
-            ' later need to close > copy > open these files, but if we loop
-            ' thru Documents collection, "open" will add file back try again.
-            ' So create Collection to loop once:
-            openTemplates.Add oDoc
-            
-            ' get FULL path to this template in its repo
-            strRepoPath = GetRepoPath(oDoc)
-    
-            If oDoc.Name = "genUtils.dotm" Then
-            ' Modules that need to be imported into templates but that we do
-            ' not want to track. We don't want to export these, so let's get
-            ' then into a string check against later.
-                
-                strDependencies = strRepoPath & Application.PathSeparator & _
-                    "dependencies"
-                Debug.Print strDependencies
-                ' Dir() w/ arguments returns first file name that matches
-                ' !!!! When switch to submodules, will need to change this to
-                ' search subdirectories.
-                strEachFile = Dir(strDependencies & Application.PathSeparator & _
-                     "*.*", vbNormal)
-                Do While Len(strEachFile) > 0
-                    Debug.Print strEachFile
-                    strDepFiles = strDepFiles & strEachFile & vbNewLine
-'                    Debug.Print strDepFiles
-                    ' Dir() again w/o arguments returns the NEXT file that matches orig arguments
-                    ' if nothing else matches, returns empty string
-                    strEachFile = Dir
-                Loop
-            Else
-                strDepFiles = vbNullString
-            End If
-
-            ' Make sure we're referencing the correct project
-            Set oProject = oDoc.VBProject
-        
-            strTemplateModules = strRepoPath & Application.PathSeparator
-            
-            ' Cycle through each module
-            For Each oModule In oProject.VBComponents
-                ' Skip modules in dependencies directory
-                If InStr(strDepFiles, oModule.Name) = 0 Then
-                    ' Don't export forms, they are always wonky. Will have to
-                    ' manage manually
-                    If oModule.Type <> vbext_ct_MSForm Then
-                        Call ExportVBComponent(VBComp:=oModule, _
-                            FolderName:=strTemplateModules)
-                    End If
-                End If
-            Next
-        End If
-    Next oDoc
-    
-    ' Have to do this in a separate loop if we're opening the files after,
-    ' otherwise the newly opened file is added back to the Documents
-    ' collection and it keeps looping through them.
-'    Dim A As Long
-    Dim aDoc As Document
-    If openTemplates.Count > 0 Then
-'        For A = 1 To openTemplates.Count
-'            Set aDoc = openTemplates.Item(A)
-        For Each aDoc In openTemplates
-            ' And also save the template file in the repo if it's not open from there
-            ' CopyTemplateToRepo closes and re-opens the doc, so don't use it for THIS doc
-            If aDoc.Name <> ThisDocument.Name Then
-                CopyTemplateToRepo TemplateDoc:=aDoc, OpenAfter:=True
-            Else
-                'Debug.Print ThisDocument.Name
-                 aDoc.Save
-            End If
-        Next aDoc
-    End If
-
 
 End Sub
 
