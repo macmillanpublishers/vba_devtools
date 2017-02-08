@@ -154,9 +154,9 @@ End Property
 
 Private Property Get RepoDocFullName() As String
   If prop_RepoDocFullName = vbNullString Then
-    prop_RepoDocPath = RepoPath & Application.PathSeparator & MacroDocName
+    prop_RepoDocFullName = RepoPath & Application.PathSeparator & MacroDocName
   End If
-  RepoDocFullName = prop_RepoDocPath
+  RepoDocFullName = prop_RepoDocFullName
 End Property
 
 ' ===== InstallType ===========================================================
@@ -191,6 +191,10 @@ Private Property Get LocalDocPath() As String
   
   ' Get full path to that dir from env variables
     prop_LocalDocPath = Environ(strLocationEnv)
+    
+    If prop_LocalDocPath = vbNullString Then
+      Stop
+    End If
   End If
   LocalDocPath = prop_LocalDocPath
 End Property
@@ -285,14 +289,14 @@ Private Property Get SubmoduleFiles() As Dictionary
       For Each varPath In SubmodulePaths
       ' Set = New to clear dict from previous loop
         Set dictFromOneDir = New Dictionary
-        Set dictFromOneDir = GetModulesInDir(varPath)
-        Set prop_SubmoduleFiles = Utils.MergeDictionary(prop_SubmodileFiles, _
+        Set dictFromOneDir = GetModulesInDir(CStr(varPath))
+        Set prop_SubmoduleFiles = Utils.MergeDictionary(prop_SubmoduleFiles, _
           dictFromOneDir)
       Next varPath
     End If
 
   End If
-  Set SubomduleFiles = prop_SubmoduleFiles
+  Set SubmoduleFiles = prop_SubmoduleFiles
 End Property
 
 
@@ -714,7 +718,7 @@ Private Sub ExportCodeFiles()
       strModuleRepoPath = RepoPath
     End If
     
-    ExportVbModule VBComp:=objVbModule, FolderName:=strModuleRepoPath
+    ExportVbModule VBComp:=objVbModule, Path:=strModuleRepoPath
   Next objVbModule
 End Sub
 

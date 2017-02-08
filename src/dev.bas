@@ -28,6 +28,8 @@ Option Base 1
 '      PUBLIC PROCEDURES
 ' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+
+
 ' ===== VbaStatus =============================================================
 ' Designed to be called from an external script that will pass working dir. If
 ' this all goes according to plan, you can run this instead of git status, and
