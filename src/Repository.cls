@@ -55,10 +55,11 @@ Private prop_LocalDocPath As String
 Private prop_LocalDocFullPath As String
 Private prop_SrcPath As String
 Private prop_SubmoduleExists As Boolean
-
 Private prop_SubmodulePaths As Collection
-
 Private prop_SubmoduleFiles As Dictionary
+Private prop_ModuleTypeToExt As Dictionary
+Private prop_ModuleExtToType As Dictionary
+Private prop_AllModuleFiles As Dictionary
 
 ' JUST VARIABLE TO STORE, NOT A PROPERTY
 Private g_blnRepoInit As Boolean
@@ -269,34 +270,92 @@ Private Property Get SubmodulePaths() As Collection
 End Property
 
 ' ===== SubmoduleFiles ========================================================
-' Dictionary of VBA module files that are currently in git submodules. Key is
-' module name, value is the full path to that file, including file name & ext.
+' Dictionary of VBA module names that are currently saved in git submodules.
+' Dictionary key is file name w/o file ext (should match module name), and value
+' is the full path to that file, including file name & ext.
 
 Private Property Get SubmoduleFiles() As Dictionary
   If prop_SubmoduleFiles Is Nothing Then
     Set prop_SubmoduleFiles = New Dictionary
     
     If Me.SubmoduleExists = True Then
-    ' Loop through files in each git submodule dir, add VBA code files to dict.
-    ' Just looking in root now, could do recursive later if needed.
+    ' .SubmodulePaths is a collection, need Variant to do For Each
       Dim varPath As Variant
-      Dim strFile As String
-      Dim lngCounter As Long
+      Dim dictFromOneDir As Dictionary
       For Each varPath In Me.SubmodulePaths
-        strFile = Dir(varPath)
-        Do Until strFile = vbNullString Or lngCounter = 50
-          prop_SubmoduleFiles.Add strFile, varPath & Application.PathSeparator _
-            & strFile
-          strFile = Dir()
-        Loop
+      ' Set = New to clear dict from previous loop
+        Set dictFromOneDir = New Dictionary
+        Set dictFromOneDir = GetModulesInDir(varPath)
+        Set prop_SubmoduleFiles = Utils.MergeDictionary(prop_SubmodileFiles, _
+          dictFromOneDir)
       Next varPath
-    Else
-    ' What can we return if there aren't any files?
     End If
 
   End If
   Set SubomduleFiles = prop_SubmoduleFiles
 End Property
+
+
+' ===== AllModuleFiles ========================================================
+' Dictionary in which keys are file names WITHOUT extension (ie module name),
+' values are full path to that file. SAME STRUCTURE AS SubmoduleFiles, so we're
+' really just adding the files in Src to that Dictionary.
+
+Private Property Get AllModuleFiles() As Dictionary
+  If prop_AllModuleFiles Is Nothing Then
+  ' It's just Submodule files + files in Src, so add together
+    Set prop_AllModuleFiles = Me.GetModulesInDir(Me.SrcPath)
+    Set prop_AllModuleFiles = Utils.MergeDictionary(prop_AllModuleFiles, _
+      Me.SubmoduleFiles)
+  End If
+  
+  Set AllModuleFiles = prop_AllModuleFiles
+End Property
+
+    
+' ===== ModuleTypeToExt =======================================================
+' VBComponent.Name just returns name in code window, not file name. Have to
+' generate file extension based on the .Type property to save it. This builds
+' a Dictionary object to grab that from.
+
+' Should be able to just use as a Dictionary: strExt = .ModuleTypeToExt(VbComp.Type)
+
+' RETURNS
+' Dictionary with keys = vbext_ComponentType and values = file ext w/o dot
+
+Private Property Get ModuleTypeToExt() As Dictionary
+  If prop_ModuleTypeToExt Is Nothing Then
+    Set prop_ModuleTypeToExt = New Dictionary
+    With prop_ModuleTypeToExt
+      .Add vbext_ct_ClassModule, "cls"
+      .Add vbext_ct_Document, "cls"
+      .Add vbext_ct_MSForm, "frm"
+      .Add vbext_ct_StdModule, "bas"
+    End With
+  End If
+  Set ModuleTypeToExt = prop_ModuleTypeToExt
+End Property
+
+' ===== ModuleExtToType =======================================================
+' Give it a valid VBA module file extension (w/o dot) and it returns the Type.
+
+' RETURNS
+' Dictionary with keys = file ext w/o dot and values = vbext_ComponentType
+
+Private Property Get ModuleExtToType() As Dictionary
+  If prop_ModuleExtToType Is Nothing Then
+    Set prop_ModuleExtToType = New Dictionary
+    With ModuleExtToType
+      .Add "cls", vbext_ct_ClassModule
+      .Add "doccls", vbext_ct_Document
+      .Add "frm", vbext_ct_MSForm
+      .Add "bas", vbext_ct_StdModule
+    End With
+  End If
+  Set ModuleExtToType = prop_ModuleExtToType
+End Property
+
+
 
 
 ' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -308,63 +367,128 @@ End Property
 ' new object and also set default properties based on arguments. Will only run
 ' once per object because of g_blnRepoInit variable.
 
-Public Sub Init(p_RepoDir As String)
-  Me.RepoPath = p_RepoDir
+Public Sub Init(RepoDir As String)
+  Me.RepoPath = RepoDir
 End Sub
 
-' ===== UpdateRepo ============================================================
+' ===== UpdateCodeInRepo ======================================================
 ' Update files in repo with code from local macro doc, also copy macro doc to repo
 ' Will leave local macro doc in original open/closed state.
 
-Public Function UpdateRepo() As Boolean
+Public Sub UpdateCodeInRepo()
 ' Make sure local doc is open
   Dim blnUpdateDocOpen As Boolean
   blnUpdateDocOpen = Me.DocOpenSave(Path:=Me.LocalDocFullName)
 
 ' Export code modules from local doc to repo
-  Me.UpdateCodeFiles
+  Me.ExportCodeFiles
 
-' If doc was closed before, close it now.
+' If doc was closed before, close it now
+' (because CopyLocalToRepo returns file to original state)
   If blnUpdateDocOpen = False Then
     Documents(Me.LocalDocFullName).Close SaveChanges:=wdSaveChanges
   End If
   
 ' Copy doc file from local to repo
-  Me.SyncDocs p_RepoIsDestination:=True
-  
-End Function
-
-' ===== SyncDocs ==============================================================
-' Macro doc files is in two places ("repo" and "local"), this copies one to
-' overwrite the other. Will reopen files that were open to start.
-
-' PARAMS
-' RepoIsDestination[Boolean]: True = copy file from local -> repo, False = copy
-'   file from repo -> local.
-
-Public Sub SyncDocs(p_RepoIsDestination As Boolean)
-  Dim strOriginFile As String
-  Dim strDestinationFile As String
-  
-  If p_RepoIsDestination = True Then
-    strOriginFile = Me.LocalDocFullName
-    strDestinationFile = Me.RepoDocFullName
-  Else
-    strOriginFile = Me.RepoDocFullName
-    strDestinationFile = Me.LocalDocFullName
-  End If
-  Me.DocFileCopy strOriginFile, strDestinationFile
+  Me.CopyLocalToRepo
 End Sub
+
+' ===== UpdateCodeInDoc =====================================================
+' Replace code in Macro document in REPO with code files in repo. Then copy the
+' updated repo macro doc to the local directory.
+
+Public Sub UpdateCodeInDoc()
+' Make sure repo doc is open (and record state so we can return later)
+  Dim blnRepoDocOpen As Boolean
+  blnRepoDocOpen = Me.DocOpenSave(Path:=Me.RepoDocFullName)
+
+' Import code from repo to doc
+  Me.ImportCodeToDoc
+  
+' Return file to original save state
+  If blnRepoDocOpen = False Then
+    Documents(Me.RepoDocFullName).Close SaveChanges:=wdSaveChanges
+  End If
+
+' Copy doc from repo to local dir.
+  Me.CopyRepoDocToLocal
+
+End Sub
+
+
+' ===== CopyLocalToRepo =======================================================
+' Copies the local macro doc/template to the repo. Calls DocFileCopy, which
+' validates the file and closes before copying, and re-opens if was open before
+
+Public Sub CopyLocalDocToRepo()
+  Me.DocFileCopy Me.LocalDocFullName, Me.RepoDocFullName
+End Sub
+
+
+' ===== CopyRepoToLocal =======================================================
+' Same as above but reversed.
+
+Public Sub CopyRepoDocToLocal()
+  Me.DocFileCopy Me.RepoDocFullName, Me.LocalDocFullName
+End Sub
+
 
 
 ' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 '       PRIVATE METHODS
 ' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+' ===== GetModulesInDir =======================================================
+' We've done this a couple of times, so we'll make it a more general thing.
+' Pass in a directory, and it will create a dictionary of files that are VBA
+' modules.
+
+' ASSUMPTIONS
+' Only checks main directory, no subdirectoires (though we could certainly do
+' that at some point if we need to)
+
+' PARAMS
+' TargetDir[String]: The directory we're looking in, no training slash
+
+' RETURNS
+' Dictionary with keys = file name without extension, value = full path to file
+
+Private Function GetModulesInDir(TargetDir As String) As Dictionary
+  Set GetModulesInDir = New Dictionary
+
+  Dim strFileAndExt As String
+  Dim strFileNameOnly As String
+  Dim lngCounter As Long
+  Dim strExt As String
+
+  strFileAndExt = Dir(TargetDir)
+  Do Until strFileAndExt = vbNullString Or lngCounter = 50
+  ' To prevent infinite loop
+    lngCounter = lngCounter + 1
+  
+  ' Get file extension to verify it's a valid VBA code module
+    strExt = Utils.GetFileExtension(strFileAndExt)
+    
+  ' Valid code file extensions are in ModuleExtToType dictionary
+    If Me.ModuleExtToType.Exists(strExt) = True Then
+    ' Module.Name has no extension, so save that as key
+      strFileNameOnly = Utils.GetFileNameOnly(strFileAndExt)
+      
+    ' Use .Item() = value not .Add , even though I don't think you can have two
+    ' different types of modules w/ same name.
+      GetModulesInDir.Item(strFileNameOnly) = TargetDir & Application.PathSeparator _
+        & strFileAndExt
+    
+    ' Get next file in dir for loop
+      strFileAndExt = Dir()
+    End If
+  Loop
+End Function
+
 ' ===== DocFileCopy ===========================================================
 ' Copies a doc from Origin to Destination. Makes sure files are closed before
 ' copying, and reopens docs if they were open to start. DestinationFile will
-' be overwritten.
+' be overwritten. Displays VBE if it was open before.
 
 ' PARAMS
 ' OriginFile[String]: file to copy from
@@ -373,8 +497,11 @@ End Sub
 Private Sub DocFileCopy(OriginFile As String, DestinationFile As String)
   Dim blnOriginOpened As Boolean
   Dim blnDestinationOpened As Boolean
+  Dim blnVbEditorOpen As Boolean
+  
   blnOriginOpened = Me.DocSaveClose(OriginFile)
   blnDestinationOpened = Me.DocSaveClose(DestinationFile)
+  blnVbEditorOpen = Application.VBE.MainWindow.Visible
   
   VBA.FileCopy Source:=OriginFile, Destination:=DestinationFile
   
@@ -385,6 +512,8 @@ Private Sub DocFileCopy(OriginFile As String, DestinationFile As String)
   If blnDestinationOpened = True Then
     Documents.Open (DestinationFile)
   End If
+  
+  Application.VBE.MainWindow.Visible = blnVbEditorOpen
 End Sub
 
 
@@ -402,8 +531,12 @@ Private Function DocSaveClose(Path As String) As Boolean
   Dim blnFileOpen As Boolean
   blnFileOpen = Utils.IsOpen(Path)
   
-  If blnFileOpen = True Then
-    Documents(Path).Close SaveChanges:=wdSaveChanges
+  If Utils.GetFileName(Path) = ThisDocument.Name Then
+    Documents(Path).Save
+  Else
+    If blnFileOpen = True Then
+      Documents(Path).Close SaveChanges:=wdSaveChanges
+    End If
   End If
   
   DocSaveClose = blnFileOpen
@@ -434,31 +567,125 @@ Private Function DocOpenSave(Path As String) As Boolean
 End Function
 
 
-
-
-
-
-
-
-
-
-' ===== UpdateDocFile =========================================================
-' Imports all VBA components in repo to Macro document in repo.
+' ===== ClearThisDocument =====================================================
+' The ThisDocument class can't be deleted, so we have to delete current code
+' line by line.
 
 ' ASSUMPTIONS
-' Repo file has already been validated and opened.
+' Target document is already open.
 
-' RETURNS
-' True = success
-' False = not
+' PARAMS
+' ThisDocModule[VBComponent]: The ThisDocument class component
 
-Private Function UpdateDocFile() As Boolean
+Private Sub ClearThisDocument(ThisDocModule As VBIDE.VBComponent)
+  Dim colComponents As VBIDE.VBComponents
+  Dim objTempModule As VBIDE.VBComponent
 
-End Function
+' We access the Components collection a few times, so set a variable here
+  Set colComponents = ThisDocModule.Collection
+  
+' Code for the REAL ThisDocument class
+  With ThisDocModule.CodeModule
+  ' Delete current code line by line, if any
+    If .CountOfLines > 0 Then
+      .DeleteLines 1, .CountOfLines
+    End If
+  End With
+  
+End Sub
+
+' ===== ImportThisDocument =====================================================
+' The ThisDocument class can't be imported b/c there is already a class with that
+' name that can't be deleted, so we'll add new code line by line.
+
+' ASSUMPTIONS
+' Target document is already open.
+' We know the file Repo/src/ThisDocument.cls already exists.
+' ThisDocument module has already been cleared of code
+
+' PARAMS
+' ThisDocModule[VBComponent]: The ThisDocument module
+
+Private Sub ImportThisDocument(ThisDocModule As VBIDE.VBComponent)
+' We access the Components collection a few times, so set a variable here
+  Dim colComponents As VBIDE.VBComponents
+  Set colComponents = ThisDocModule.Collection
+  
+' Exported text doc has attributes that do not get printed to the code module
+' so we can't just read the text file and paste it in. Instead we'll import
+' the module in a TEMP module...
+  Dim objTempModule As VBIDE.VBComponent
+  Set objTempModule = colComponents.Import(Me.SrcDir & Application.PathSeparator _
+    & "ThisDocument.cls")
+  
+' ... copy code from temp module
+  Dim strNewCode As String
+  strNewCode = objTempModule.CodeModule.lines(1, objTempModule.CodeModule.CountOfLines)
+ 
+' Insert copied code into original ThisDocument code
+' If there is already code, append
+  With ThisDocModule.CodeModule
+    .InsertLines Line:=.CountOfLines + 1, String:=strNewCode
+  End With
+
+' And cleanup! delete temp module
+  colComponents.Remove objTempModule
+  
+End Sub
 
 
+' ===== ImportCodeToDoc =======================================================
+' Imports all VBA components in repo to Macro document in repo. If the module
+' is already in the doc, it is overwritten by the version in the repo. If a new
+' module is in the repo, it is added to doc. If a module is in the doc but not
+' in the repo, it stays in the doc.
 
-' ===== UpdateCodeFiles ======================================================
+' ASSUMPTIONS
+' Repo doc file has already been validated and opened.
+
+' TODO (maybe)
+' Maybe if module is in doc but not in repo, we export it to repo?
+' OR do we rebuild the doc file from scratch and delete the old one?
+
+Private Sub ImportCodeToDoc()
+' Collection of all modules for the doc in the repo
+  Dim colVbComponents As VBIDE.VBComponents
+  Set colVbComponents = Documents(Me.RepoDocFullName).VBProject.VBComponents
+
+' We can't import a code file if there is already a module with the same name
+' in the document. So we'll loop through the modules already in the doc and
+' remove any that match code files that we want to import. Doing delete and
+' import and two separate steps because we want to keep modules that aren't
+' in repo.
+
+' Loop through all modules in project, delete any that are already in repo
+  Dim objVbModule As VBIDE.VBComponent
+  For Each objVbModule In colVbComponents
+  ' We need to treat ThisDocument class separately b/c can't delete
+    If objVbModule.Name = "ThisDocument" Then
+      Me.ClearThisDocument
+    Else
+      colVbComponents.Remove objVbModule
+    End If
+  Next objVbModule
+  
+' Now we can import files!
+  Dim strFileName As String
+  For Each strFileName In Me.AllModuleFiles.Keys
+    If strFileName = "ThisDocument" Then
+      Me.ImportThisDocument (colVbComponents("ThisDocument"))
+    Else
+      colVbComponents.Import Me.AllModuleFiles(strFileName)
+    End If
+  Next strFileName
+  
+' Save!
+  Documents(Me.RepoDocFullName).Save wdSaveChanges
+
+End Sub
+
+
+' ===== ExportCodeFiles =======================================================
 ' Exports all VBA components (i.e., .bas, .cls, and .frm files) from the local
 ' doc/template to this repo. Handles all the submodule stuff.
 ' Repo must be set up as described at top.
@@ -466,105 +693,46 @@ End Function
 ' ASSUMPTIONS:
 ' Local doc file has already been validated and opened.
 
-' RETURNS: Boolean
-' True = it worked
-' False = it didn't work, bah
-
-' TODO:
-' Maybe have it return a more descriptive string we can return for user?
-
-Private Function UpdateCodeFiles() As Boolean
+Private Sub ExportCodeFiles()
+' Set local template as our doc to work with
+  Dim docLocalTemplate As Document
+  Set docLocalTemplate = Documents(Me.LocalDocFullPath)
+  
+' Loop through VBA modules in the template project
+  Dim objVbProj As VBIDE.VBProject
+  Dim objVbModule As VBIDE.VBComponent
+  Dim strModuleRepoPath As String
+  
+  Set objVbProj = docLocalTemplate.VBProject
+  For Each objVbModule In objVbProj.VBComponents
+    If Me.SubmoduleFiles.Exists(objVbModule.Name) = True Then
+      strModuleRepoPath = Me.SubmoduleFiles(objVbModule.Name)
+    Else
+      strModuleRepoPath = Me.RepoPath
+    End If
     
-    ' Cycle through each open document
-    Dim oDoc As Document
-    Dim strExtension As String
-    Dim oProject As VBIDE.VBProject
-    Dim oModule As VBIDE.VBComponent
-    Dim strTemplateModules As String
-    Dim strDependencies As String
-    Dim strDepFiles As String
-    Dim strEachFile As String
-    Dim strRepoPath As String
-    Dim openTemplates As Collection
-    Set openTemplates = New Collection
+    Me.ExportVbModule VBComp:=objVbModule, FolderName:=strModuleRepoPath
+  Next objVbModule
+End Sub
+
+' ===== ExportVbModule ========================================================
+' Export VBA module passed to the folder passed to it
+Private Sub ExportVbModule(VBComp As VBIDE.VBComponent, Path As String)
+
+  Dim strFileName As String
+  strFileName = VBComp.Name & "." & ModuleTypeToExt(VBComp.Type)
+  
+  Dim strFullPath As String
+  strFullPath = Path & Application.PathSeparator & strFileName
+
+' ThisDocument module always there by default but doesn't always have code
+  If strFileName <> "ThisDocument.cls" Or VBComp.CodeModule.CountOfLines <> 0 Then
+  ' Delete file in repo if it exists
+    If Utils.IsItThere(Path:=strFullPath) = True Then
+      Utils.KillAll Path:=strFullPath
+    End If
+  ' Export the module
+    VBComp.Export FileName:=strFullPath
+  End If
     
-    For Each oDoc In Documents
-        Debug.Print oDoc.Name
-        ' Separate the name and the extension of the document
-        strExtension = Right(oDoc.Name, Len(oDoc.Name) - _
-            (InStrRev(oDoc.Name, ".") - 1))
-        
-        ' We just want to work with .dotm and .docm (others can't have macros)
-        If strExtension = ".dotm" Or strExtension = ".docm" Then
-            ' later need to close > copy > open these files, but if we loop
-            ' thru Documents collection, "open" will add file back try again.
-            ' So create Collection to loop once:
-            openTemplates.Add oDoc
-            
-            ' get FULL path to this template in its repo
-            strRepoPath = GetRepoPath(oDoc)
-    
-            If oDoc.Name = "genUtils.dotm" Then
-            ' Modules that need to be imported into templates but that we do
-            ' not want to track. We don't want to export these, so let's get
-            ' then into a string check against later.
-                
-                strDependencies = strRepoPath & Application.PathSeparator & _
-                    "dependencies"
-                Debug.Print strDependencies
-                ' Dir() w/ arguments returns first file name that matches
-                ' !!!! When switch to submodules, will need to change this to
-                ' search subdirectories.
-                strEachFile = Dir(strDependencies & Application.PathSeparator & _
-                     "*.*", vbNormal)
-                Do While Len(strEachFile) > 0
-                    Debug.Print strEachFile
-                    strDepFiles = strDepFiles & strEachFile & vbNewLine
-'                    Debug.Print strDepFiles
-                    ' Dir() again w/o arguments returns the NEXT file that matches orig arguments
-                    ' if nothing else matches, returns empty string
-                    strEachFile = Dir
-                Loop
-            Else
-                strDepFiles = vbNullString
-            End If
-
-            ' Make sure we're referencing the correct project
-            Set oProject = oDoc.VBProject
-        
-            strTemplateModules = strRepoPath & Application.PathSeparator
-            
-            ' Cycle through each module
-            For Each oModule In oProject.VBComponents
-                ' Skip modules in dependencies directory
-                If InStr(strDepFiles, oModule.Name) = 0 Then
-                    ' Don't export forms, they are always wonky. Will have to
-                    ' manage manually
-                    If oModule.Type <> vbext_ct_MSForm Then
-                        Call ExportVBComponent(VBComp:=oModule, _
-                            FolderName:=strTemplateModules)
-                    End If
-                End If
-            Next
-        End If
-    Next oDoc
-
-End Function
-
-
-
-
-' ===== SaveToRepo ============================================================
-' Save the component passed to this repo. Checks for files that should go into
-' git submodules.
-
-
-' ===== ClearThisDocument =====================================================
-' The ThisDocument class can't be deleted (because it represents our actual doc
-' object, so this function simple deletes the code that is in it.
-
-
-' ===== BuildThisDocument =====================================================
-' Can't delete ThisDocument class, thus can't import a saved one. So this adds
-' code from a saved ThisDocument.cls file line by line. If you don't use Clear
-' first, will append (and probably mess something up).
+End Sub
