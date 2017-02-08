@@ -74,7 +74,7 @@ Public Function VbaCheckout(WorkingDir As String) As Boolean
   Set objCheckoutRepo = Factory.CreateRepository(WorkingDir)
   
 ' Checkout means we changed file in repo, need to copy TO local
-  objCheckoutRepo.CopyRepoToLocal
+  objCheckoutRepo.CopyRepoDocToLocal
 
 ' maybe useful later
   VbaCheckout = True

@@ -57,8 +57,8 @@ Private prop_SrcPath As String
 Private prop_SubmoduleExists As Boolean
 Private prop_SubmodulePaths As Collection
 Private prop_SubmoduleFiles As Dictionary
-Private prop_ModuleTypeToExt As Dictionary
-Private prop_ModuleExtToType As Dictionary
+Private prop_ExtFromModuleType As Dictionary
+Private prop_ModuleTypeFromExt As Dictionary
 Private prop_AllModuleFiles As Dictionary
 
 ' JUST VARIABLE TO STORE, NOT A PROPERTY
@@ -294,7 +294,6 @@ Private Property Get SubmoduleFiles() As Dictionary
           dictFromOneDir)
       Next varPath
     End If
-
   End If
   Set SubmoduleFiles = prop_SubmoduleFiles
 End Property
@@ -317,46 +316,46 @@ Private Property Get AllModuleFiles() As Dictionary
 End Property
 
     
-' ===== ModuleTypeToExt =======================================================
+' ===== ExtFromModuleType =====================================================
 ' VBComponent.Name just returns name in code window, not file name. Have to
 ' generate file extension based on the .Type property to save it. This builds
 ' a Dictionary object to grab that from.
 
-' Should be able to just use as a Dictionary: strExt = .ModuleTypeToExt(VbComp.Type)
+' Should be able to just use as a Dictionary: strExt = .ExtFromModuleType(VbComp.Type)
 
 ' RETURNS
 ' Dictionary with keys = vbext_ComponentType and values = file ext w/o dot
 
-Private Property Get ModuleTypeToExt() As Dictionary
-  If prop_ModuleTypeToExt Is Nothing Then
-    Set prop_ModuleTypeToExt = New Dictionary
-    With prop_ModuleTypeToExt
+Private Property Get ExtFromModuleType() As Dictionary
+  If prop_ExtFromModuleType Is Nothing Then
+    Set prop_ExtFromModuleType = New Dictionary
+    With prop_ExtFromModuleType
       .Add vbext_ct_ClassModule, "cls"
       .Add vbext_ct_Document, "cls"
       .Add vbext_ct_MSForm, "frm"
       .Add vbext_ct_StdModule, "bas"
     End With
   End If
-  Set ModuleTypeToExt = prop_ModuleTypeToExt
+  Set ExtFromModuleType = prop_ExtFromModuleType
 End Property
 
-' ===== ModuleExtToType =======================================================
+' ===== ModuleTypeFromExt =======================================================
 ' Give it a valid VBA module file extension (w/o dot) and it returns the Type.
 
 ' RETURNS
 ' Dictionary with keys = file ext w/o dot and values = vbext_ComponentType
 
-Private Property Get ModuleExtToType() As Dictionary
-  If prop_ModuleExtToType Is Nothing Then
-    Set prop_ModuleExtToType = New Dictionary
-    With ModuleExtToType
+Private Property Get ModuleTypeFromExt() As Dictionary
+  If prop_ModuleTypeFromExt Is Nothing Then
+    Set prop_ModuleTypeFromExt = New Dictionary
+    With prop_ModuleTypeFromExt
       .Add "cls", vbext_ct_ClassModule
       .Add "doccls", vbext_ct_Document
       .Add "frm", vbext_ct_MSForm
       .Add "bas", vbext_ct_StdModule
     End With
   End If
-  Set ModuleExtToType = prop_ModuleExtToType
+  Set ModuleTypeFromExt = prop_ModuleTypeFromExt
 End Property
 
 
@@ -468,7 +467,7 @@ Private Function GetModulesInDir(TargetDir As String) As Dictionary
   Dim lngCounter As Long
   Dim strExt As String
 
-  strFileAndExt = Dir(TargetDir)
+  strFileAndExt = Dir(TargetDir & Application.PathSeparator)
   Do Until strFileAndExt = vbNullString Or lngCounter = 50
   ' To prevent infinite loop
     lngCounter = lngCounter + 1
@@ -476,8 +475,8 @@ Private Function GetModulesInDir(TargetDir As String) As Dictionary
   ' Get file extension to verify it's a valid VBA code module
     strExt = Utils.GetFileExtension(strFileAndExt)
     
-  ' Valid code file extensions are in ModuleExtToType dictionary
-    If ModuleExtToType.Exists(strExt) = True Then
+  ' Valid code file extensions are in ModuleTypeFromExt dictionary
+    If ModuleTypeFromExt.Exists(strExt) = True Then
     ' Module.Name has no extension, so save that as key
       strFileNameOnly = Utils.GetFileNameOnly(strFileAndExt)
       
@@ -485,10 +484,10 @@ Private Function GetModulesInDir(TargetDir As String) As Dictionary
     ' different types of modules w/ same name.
       GetModulesInDir.Item(strFileNameOnly) = TargetDir & Application.PathSeparator _
         & strFileAndExt
-    
-    ' Get next file in dir for loop
-      strFileAndExt = Dir()
     End If
+  
+  ' Get next file in dir for loop
+    strFileAndExt = Dir()
   Loop
 End Function
 
@@ -498,17 +497,30 @@ End Function
 ' be overwritten. Displays VBE if it was open before.
 
 ' PARAMS
-' OriginFile[String]: file to copy from
-' DestinationFile[String]: file to copy to
+' OriginFile[String]: full path to file to copy from
+' DestinationFile[String]: full path to file to copy to
 
 Private Sub DocFileCopy(OriginFile As String, DestinationFile As String)
   Dim blnOriginOpened As Boolean
   Dim blnDestinationOpened As Boolean
   Dim blnVbEditorOpen As Boolean
-  
+
+' Save and close relevant docs, record if were open
   blnOriginOpened = DocSaveClose(OriginFile)
   blnDestinationOpened = DocSaveClose(DestinationFile)
   blnVbEditorOpen = Application.VBE.MainWindow.Visible
+
+' Check if loaded as an Add-In, and if so unload it
+  Dim blnOriginAddin As Boolean
+  Dim blnDestAddin As Boolean
+  Dim strOriginFileAndExt As String
+  Dim strDestFileAndExt As String
+  
+  strOriginFileAndExt = Utils.GetFileName(OriginFile)
+  strDestFileAndExt = Utils.GetFileName(DestinationFile)
+  
+  blnOriginAddin = Utils.UnloadAddIn(strOriginFileAndExt)
+  blnDestAddin = Utils.UnloadAddIn(strOriginFileAndExt)
   
   VBA.FileCopy Source:=OriginFile, Destination:=DestinationFile
   
@@ -518,6 +530,14 @@ Private Sub DocFileCopy(OriginFile As String, DestinationFile As String)
   
   If blnDestinationOpened = True Then
     Documents.Open (DestinationFile)
+  End If
+  
+  If blnOriginAddin = True Then
+    Application.AddIns(strOriginFileAndExt).Installed = True
+  End If
+  
+  If blnDestAddin = True Then
+    Application.AddIns(strDestFileAndExt).Installed = True
   End If
   
   Application.VBE.MainWindow.Visible = blnVbEditorOpen
@@ -613,16 +633,16 @@ End Sub
 ' PARAMS
 ' ThisDocModule[VBComponent]: The ThisDocument module
 
-Private Sub ImportThisDocument(ThisDocModule As VBIDE.VBComponent)
+Private Sub ImportThisDocument(ModulesCollection As VBIDE.VBComponents)
 ' We access the Components collection a few times, so set a variable here
-  Dim colComponents As VBIDE.VBComponents
-  Set colComponents = ThisDocModule.Collection
+  Dim objThisDocModule As VBIDE.VBComponent
+  Set objThisDocModule = ModulesCollection("ThisDocument")
   
 ' Exported text doc has attributes that do not get printed to the code module
 ' so we can't just read the text file and paste it in. Instead we'll import
 ' the module in a TEMP module...
   Dim objTempModule As VBIDE.VBComponent
-  Set objTempModule = colComponents.Import(SrcDir & Application.PathSeparator _
+  Set objTempModule = ModulesCollection.Import(SrcPath & Application.PathSeparator _
     & "ThisDocument.cls")
   
 ' ... copy code from temp module
@@ -631,12 +651,12 @@ Private Sub ImportThisDocument(ThisDocModule As VBIDE.VBComponent)
  
 ' Insert copied code into original ThisDocument code
 ' If there is already code, append
-  With ThisDocModule.CodeModule
+  With objThisDocModule.CodeModule
     .InsertLines Line:=.CountOfLines + 1, String:=strNewCode
   End With
 
 ' And cleanup! delete temp module
-  colComponents.Remove objTempModule
+  ModulesCollection.Remove objTempModule
   
 End Sub
 
@@ -670,24 +690,25 @@ Private Sub ImportCodeToDoc()
   For Each objVbModule In colVbComponents
   ' We need to treat ThisDocument class separately b/c can't delete
     If objVbModule.Name = "ThisDocument" Then
-      ClearThisDocument
+      ClearThisDocument ThisDocModule:=objVbModule
     Else
       colVbComponents.Remove objVbModule
     End If
   Next objVbModule
   
 ' Now we can import files!
-  Dim strFileName As String
-  For Each strFileName In AllModuleFiles.Keys
-    If strFileName = "ThisDocument" Then
-      ImportThisDocument (colVbComponents("ThisDocument"))
+  Dim varFileName As Variant
+  For Each varFileName In AllModuleFiles.Keys
+    If CStr(varFileName) = "ThisDocument" Then
+      
+      ImportThisDocument colVbComponents
     Else
-      colVbComponents.Import AllModuleFiles(strFileName)
+      colVbComponents.Import AllModuleFiles(CStr(varFileName))
     End If
-  Next strFileName
+  Next varFileName
   
 ' Save!
-  Documents(RepoDocFullName).Save wdSaveChanges
+  Documents(RepoDocFullName).Save
 
 End Sub
 
@@ -701,45 +722,40 @@ End Sub
 ' Local doc file has already been validated and opened.
 
 Private Sub ExportCodeFiles()
-' Set local template as our doc to work with
-  Dim docLocalTemplate As Document
-  Set docLocalTemplate = Documents(LocalDocFullName)
-  
-' Loop through VBA modules in the template project
   Dim objVbProj As VBIDE.VBProject
   Dim objVbModule As VBIDE.VBComponent
   Dim strModuleRepoPath As String
+  Dim strFileExt As String
   
-  Set objVbProj = docLocalTemplate.VBProject
+  Set objVbProj = Documents(LocalDocFullName).VBProject
+  
+' Loop through VBA modules in the template project
   For Each objVbModule In objVbProj.VBComponents
     If SubmoduleFiles.Exists(objVbModule.Name) = True Then
       strModuleRepoPath = SubmoduleFiles(objVbModule.Name)
     Else
-      strModuleRepoPath = SrcPath
+      strFileExt = ExtFromModuleType(objVbModule.Type)
+      strModuleRepoPath = SrcPath & Application.PathSeparator & objVbModule.Name _
+        & "." & strFileExt
     End If
     
-    ExportVbModule VBComp:=objVbModule, Path:=strModuleRepoPath
+    ExportVbModule VBComp:=objVbModule, FullPath:=strModuleRepoPath
   Next objVbModule
 End Sub
 
 ' ===== ExportVbModule ========================================================
-' Export VBA module passed to the folder passed to it
-Private Sub ExportVbModule(VBComp As VBIDE.VBComponent, Path As String)
+' Export VBA module passed to the FILE passed to it.
 
-  Dim strFileName As String
-  strFileName = VBComp.Name & "." & ModuleTypeToExt(VBComp.Type)
-  
-  Dim strFullPath As String
-  strFullPath = Path & Application.PathSeparator & strFileName
+Private Sub ExportVbModule(VBComp As VBIDE.VBComponent, FullPath As String)
 
 ' ThisDocument module always there by default but doesn't always have code
-  If strFileName <> "ThisDocument.cls" Or VBComp.CodeModule.CountOfLines <> 0 Then
+  If VBComp.Name <> "ThisDocument" Or VBComp.CodeModule.CountOfLines <> 0 Then
   ' Delete file in repo if it exists
-    If Utils.IsItThere(Path:=strFullPath) = True Then
-      Utils.KillAll Path:=strFullPath
+    If Utils.IsItThere(Path:=FullPath) = True Then
+      Utils.KillAll Path:=FullPath
     End If
   ' Export the module
-    VBComp.Export FileName:=strFullPath
+    VBComp.Export FileName:=FullPath
   End If
     
 End Sub
