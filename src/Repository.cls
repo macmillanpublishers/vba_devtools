@@ -52,7 +52,7 @@ Private prop_MacroDocName As String
 Private prop_RepoDocFullName As String
 Private prop_InstallType As String
 Private prop_LocalDocPath As String
-Private prop_LocalDocFullPath As String
+Private prop_LocalDocFullName As String
 Private prop_SrcPath As String
 Private prop_SubmoduleExists As Boolean
 Private prop_SubmodulePaths As Collection
@@ -101,7 +101,7 @@ End Property
 
 Private Property Get RepoName() As String
   If prop_RepoName = vbNullString Then
-    prop_RepoName = Right(Me.RepoPath, Len(Me.RepoPath) - InStrRev(Me.RepoPath, _
+    prop_RepoName = Right(RepoPath, Len(RepoPath) - InStrRev(RepoPath, _
       Application.PathSeparator))
   End If
   RepoName = prop_RepoName
@@ -112,7 +112,7 @@ End Property
 
 Private Property Get ConfigName() As String
   If prop_ConfigName = vbNullString Then
-    prop_ConfigName = Me.RepoName & "_config.json"
+    prop_ConfigName = RepoName & "_config.json"
   End If
   ConfigName = prop_ConfigName
 End Property
@@ -122,7 +122,7 @@ End Property
 
 Private Property Get ConfigFullName() As String
   If prop_ConfigFullName = vbNullString Then
-    prop_ConfigFullName = Me.RepoPath & Application.PathSeparator & Me.ConfigName
+    prop_ConfigFullName = RepoPath & Application.PathSeparator & ConfigName
   End If
   ConfigFullName = prop_ConfigFullName
 End Property
@@ -133,7 +133,7 @@ End Property
 ' TODO: probably need a class just for this at some point.
 Private Property Get ConfigData() As Dictionary
   If prop_ConfigData Is Nothing Then
-    Set prop_ConfigData = Utils.ReadJson(JsonPath:=Me.ConfigFullPath)
+    Set prop_ConfigData = Utils.ReadJson(JsonPath:=ConfigFullPath)
   End If
   Set ConfigData = prop_ConfigData
 End Property
@@ -144,7 +144,7 @@ End Property
 
 Private Property Get MacroDocName() As String
   If prop_MacroDocName = vbNullString Then
-    prop_MacroDocName = Me.RepoName & "." & Me.ConfigData("extension")
+    prop_MacroDocName = RepoName & "." & ConfigData("extension")
   End If
   MacroDocName = prop_MacroDocName
 End Property
@@ -154,7 +154,7 @@ End Property
 
 Private Property Get RepoDocFullName() As String
   If prop_RepoDocFullName = vbNullString Then
-    prop_RepoDocPath = Me.RepoPath & Application.PathSeparator & Me.MacroDocName
+    prop_RepoDocPath = RepoPath & Application.PathSeparator & MacroDocName
   End If
   RepoDocFullName = prop_RepoDocPath
 End Property
@@ -187,7 +187,7 @@ Private Property Get LocalDocPath() As String
   If prop_LocalDocPath = vbNullString Then
   ' Access "location" value (which should = an env. variable)
     Dim strLocationEnv As String
-    strLocationEnv = Me.ConfigData("location")(Me.InstallType)
+    strLocationEnv = ConfigData("location")(InstallType)
   
   ' Get full path to that dir from env variables
     prop_LocalDocPath = Environ(strLocationEnv)
@@ -195,15 +195,15 @@ Private Property Get LocalDocPath() As String
   LocalDocPath = prop_LocalDocPath
 End Property
 
-' ===== LocalDocFullPath ======================================================
+' ===== LocalDocFullName ======================================================
 ' Path & file name to local macro template/doc/whatever, per repo Config file.
 
-Private Property Get LocalDocFullPath() As String
-  If prop_LocalDocFullPath = vbNullString Then
-    prop_LocalDocFullPath = Me.LocalDocPath & Application.PathSeparator & _
-      Me.MacroDocName
+Private Property Get LocalDocFullName() As String
+  If prop_LocalDocFullName = vbNullString Then
+    prop_LocalDocFullName = LocalDocPath & Application.PathSeparator & _
+      MacroDocName
   End If
-  LocalDocFullPath = prop_LocalDocFullPath
+  LocalDocFullName = prop_LocalDocFullName
 End Property
 
 ' ===== SrcPath ===============================================================
@@ -211,7 +211,7 @@ End Property
 
 Private Property Get SrcPath() As String
   If prop_SrcPath = vbNullString Then
-    prop_SrcPath = Me.RepoPath & Application.Path & "src"
+    prop_SrcPath = RepoPath & Application.Path & "src"
   End If
   ScrPath = prop_SrcPath
 End Property
@@ -221,7 +221,7 @@ End Property
 ' can't figure how to test if we've set it yet (Boolean defaults to False).
 
 Private Property Get SubmoduleExists() As Boolean
-  SubmoduleExists = Utils.IsItThere(Me.RepoPath & Application.PathSeparator _
+  SubmoduleExists = Utils.IsItThere(RepoPath & Application.PathSeparator _
     & ".gitmodules")
 End Property
 
@@ -235,9 +235,9 @@ Private Property Get SubmodulePaths() As Collection
     Dim c_Matches As MatchCollection
     Dim c_strSubmodulePaths As Collection
     
-    If Me.SubmoduleExists = True Then
+    If SubmoduleExists = True Then
     ' Read .gitmodules file
-      strGitmodulesText = Utils.ReadTextFile(Me.RepoPath & _
+      strGitmodulesText = Utils.ReadTextFile(RepoPath & _
         Application.PathSeparator & ".gitmodules", False)
   '    Debug.Print strGitmodulesText
       
@@ -259,7 +259,7 @@ Private Property Get SubmodulePaths() As Collection
     
     If c_Matches.Count > 0 Then
       For Each objMatch In c_Matches
-        strPath = Me.RepoPath & Application.PathSeparator & _
+        strPath = RepoPath & Application.PathSeparator & _
           objMatch.SubMatches.Item(0)
   '      Debug.Print strPath
         prop_SubmodulePaths.Add strPath
@@ -278,11 +278,11 @@ Private Property Get SubmoduleFiles() As Dictionary
   If prop_SubmoduleFiles Is Nothing Then
     Set prop_SubmoduleFiles = New Dictionary
     
-    If Me.SubmoduleExists = True Then
+    If SubmoduleExists = True Then
     ' .SubmodulePaths is a collection, need Variant to do For Each
       Dim varPath As Variant
       Dim dictFromOneDir As Dictionary
-      For Each varPath In Me.SubmodulePaths
+      For Each varPath In SubmodulePaths
       ' Set = New to clear dict from previous loop
         Set dictFromOneDir = New Dictionary
         Set dictFromOneDir = GetModulesInDir(varPath)
@@ -304,9 +304,9 @@ End Property
 Private Property Get AllModuleFiles() As Dictionary
   If prop_AllModuleFiles Is Nothing Then
   ' It's just Submodule files + files in Src, so add together
-    Set prop_AllModuleFiles = Me.GetModulesInDir(Me.SrcPath)
+    Set prop_AllModuleFiles = GetModulesInDir(SrcPath)
     Set prop_AllModuleFiles = Utils.MergeDictionary(prop_AllModuleFiles, _
-      Me.SubmoduleFiles)
+      SubmoduleFiles)
   End If
   
   Set AllModuleFiles = prop_AllModuleFiles
@@ -368,7 +368,7 @@ End Property
 ' once per object because of g_blnRepoInit variable.
 
 Public Sub Init(RepoDir As String)
-  Me.RepoPath = RepoDir
+  RepoPath = RepoDir
 End Sub
 
 ' ===== UpdateCodeInRepo ======================================================
@@ -378,19 +378,19 @@ End Sub
 Public Sub UpdateCodeInRepo()
 ' Make sure local doc is open
   Dim blnUpdateDocOpen As Boolean
-  blnUpdateDocOpen = Me.DocOpenSave(Path:=Me.LocalDocFullName)
+  blnUpdateDocOpen = DocOpenSave(Path:=LocalDocFullName)
 
 ' Export code modules from local doc to repo
-  Me.ExportCodeFiles
+  ExportCodeFiles
 
 ' If doc was closed before, close it now
 ' (because CopyLocalToRepo returns file to original state)
   If blnUpdateDocOpen = False Then
-    Documents(Me.LocalDocFullName).Close SaveChanges:=wdSaveChanges
+    Documents(LocalDocFullName).Close SaveChanges:=wdSaveChanges
   End If
   
 ' Copy doc file from local to repo
-  Me.CopyLocalToRepo
+  CopyLocalDocToRepo
 End Sub
 
 ' ===== UpdateCodeInDoc =====================================================
@@ -400,18 +400,18 @@ End Sub
 Public Sub UpdateCodeInDoc()
 ' Make sure repo doc is open (and record state so we can return later)
   Dim blnRepoDocOpen As Boolean
-  blnRepoDocOpen = Me.DocOpenSave(Path:=Me.RepoDocFullName)
+  blnRepoDocOpen = DocOpenSave(Path:=RepoDocFullName)
 
 ' Import code from repo to doc
-  Me.ImportCodeToDoc
+  ImportCodeToDoc
   
 ' Return file to original save state
   If blnRepoDocOpen = False Then
-    Documents(Me.RepoDocFullName).Close SaveChanges:=wdSaveChanges
+    Documents(RepoDocFullName).Close SaveChanges:=wdSaveChanges
   End If
 
 ' Copy doc from repo to local dir.
-  Me.CopyRepoDocToLocal
+  CopyRepoDocToLocal
 
 End Sub
 
@@ -421,7 +421,7 @@ End Sub
 ' validates the file and closes before copying, and re-opens if was open before
 
 Public Sub CopyLocalDocToRepo()
-  Me.DocFileCopy Me.LocalDocFullName, Me.RepoDocFullName
+  DocFileCopy LocalDocFullName, RepoDocFullName
 End Sub
 
 
@@ -429,7 +429,7 @@ End Sub
 ' Same as above but reversed.
 
 Public Sub CopyRepoDocToLocal()
-  Me.DocFileCopy Me.RepoDocFullName, Me.LocalDocFullName
+  DocFileCopy RepoDocFullName, LocalDocFullName
 End Sub
 
 
@@ -470,7 +470,7 @@ Private Function GetModulesInDir(TargetDir As String) As Dictionary
     strExt = Utils.GetFileExtension(strFileAndExt)
     
   ' Valid code file extensions are in ModuleExtToType dictionary
-    If Me.ModuleExtToType.Exists(strExt) = True Then
+    If ModuleExtToType.Exists(strExt) = True Then
     ' Module.Name has no extension, so save that as key
       strFileNameOnly = Utils.GetFileNameOnly(strFileAndExt)
       
@@ -499,8 +499,8 @@ Private Sub DocFileCopy(OriginFile As String, DestinationFile As String)
   Dim blnDestinationOpened As Boolean
   Dim blnVbEditorOpen As Boolean
   
-  blnOriginOpened = Me.DocSaveClose(OriginFile)
-  blnDestinationOpened = Me.DocSaveClose(DestinationFile)
+  blnOriginOpened = DocSaveClose(OriginFile)
+  blnDestinationOpened = DocSaveClose(DestinationFile)
   blnVbEditorOpen = Application.VBE.MainWindow.Visible
   
   VBA.FileCopy Source:=OriginFile, Destination:=DestinationFile
@@ -615,7 +615,7 @@ Private Sub ImportThisDocument(ThisDocModule As VBIDE.VBComponent)
 ' so we can't just read the text file and paste it in. Instead we'll import
 ' the module in a TEMP module...
   Dim objTempModule As VBIDE.VBComponent
-  Set objTempModule = colComponents.Import(Me.SrcDir & Application.PathSeparator _
+  Set objTempModule = colComponents.Import(SrcDir & Application.PathSeparator _
     & "ThisDocument.cls")
   
 ' ... copy code from temp module
@@ -650,7 +650,7 @@ End Sub
 Private Sub ImportCodeToDoc()
 ' Collection of all modules for the doc in the repo
   Dim colVbComponents As VBIDE.VBComponents
-  Set colVbComponents = Documents(Me.RepoDocFullName).VBProject.VBComponents
+  Set colVbComponents = Documents(RepoDocFullName).VBProject.VBComponents
 
 ' We can't import a code file if there is already a module with the same name
 ' in the document. So we'll loop through the modules already in the doc and
@@ -663,7 +663,7 @@ Private Sub ImportCodeToDoc()
   For Each objVbModule In colVbComponents
   ' We need to treat ThisDocument class separately b/c can't delete
     If objVbModule.Name = "ThisDocument" Then
-      Me.ClearThisDocument
+      ClearThisDocument
     Else
       colVbComponents.Remove objVbModule
     End If
@@ -671,16 +671,16 @@ Private Sub ImportCodeToDoc()
   
 ' Now we can import files!
   Dim strFileName As String
-  For Each strFileName In Me.AllModuleFiles.Keys
+  For Each strFileName In AllModuleFiles.Keys
     If strFileName = "ThisDocument" Then
-      Me.ImportThisDocument (colVbComponents("ThisDocument"))
+      ImportThisDocument (colVbComponents("ThisDocument"))
     Else
-      colVbComponents.Import Me.AllModuleFiles(strFileName)
+      colVbComponents.Import AllModuleFiles(strFileName)
     End If
   Next strFileName
   
 ' Save!
-  Documents(Me.RepoDocFullName).Save wdSaveChanges
+  Documents(RepoDocFullName).Save wdSaveChanges
 
 End Sub
 
@@ -696,7 +696,7 @@ End Sub
 Private Sub ExportCodeFiles()
 ' Set local template as our doc to work with
   Dim docLocalTemplate As Document
-  Set docLocalTemplate = Documents(Me.LocalDocFullPath)
+  Set docLocalTemplate = Documents(LocalDocFullName)
   
 ' Loop through VBA modules in the template project
   Dim objVbProj As VBIDE.VBProject
@@ -705,13 +705,13 @@ Private Sub ExportCodeFiles()
   
   Set objVbProj = docLocalTemplate.VBProject
   For Each objVbModule In objVbProj.VBComponents
-    If Me.SubmoduleFiles.Exists(objVbModule.Name) = True Then
-      strModuleRepoPath = Me.SubmoduleFiles(objVbModule.Name)
+    If SubmoduleFiles.Exists(objVbModule.Name) = True Then
+      strModuleRepoPath = SubmoduleFiles(objVbModule.Name)
     Else
-      strModuleRepoPath = Me.RepoPath
+      strModuleRepoPath = RepoPath
     End If
     
-    Me.ExportVbModule VBComp:=objVbModule, FolderName:=strModuleRepoPath
+    ExportVbModule VBComp:=objVbModule, FolderName:=strModuleRepoPath
   Next objVbModule
 End Sub
 
