@@ -6,8 +6,8 @@
 		"patch": 0
 	},
 	"location": {
-		"user": "Startup",
-		"server": "Startup"
+		"user": "WordStartup",
+		"server": "WordStartup"
 	},
 	"installType": "server"
 }
