@@ -1,11 +1,13 @@
-"extension":"dotm",
-"version":{
-	"major":0,
-	"minor":1,
-	"patch":0
-},
-"location":{
-	"user":"Startup",
-	"server":"Startup"
+{
+	"extension": "dotm",
+	"version": {
+		"major": 0,
+		"minor": 1,
+		"patch": 0
+	},
+	"location": {
+		"user": "Startup",
+		"server": "Startup"
+	},
+	"installType": "server"
 }
-"installType":"server"
