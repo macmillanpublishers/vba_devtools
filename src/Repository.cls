@@ -215,9 +215,9 @@ End Property
 
 Private Property Get SrcPath() As String
   If prop_SrcPath = vbNullString Then
-    prop_SrcPath = RepoPath & Application.Path & "src"
+    prop_SrcPath = RepoPath & Application.PathSeparator & "src"
   End If
-  ScrPath = prop_SrcPath
+  SrcPath = prop_SrcPath
 End Property
 
 ' ===== SubmoduleExists =======================================================
@@ -715,7 +715,7 @@ Private Sub ExportCodeFiles()
     If SubmoduleFiles.Exists(objVbModule.Name) = True Then
       strModuleRepoPath = SubmoduleFiles(objVbModule.Name)
     Else
-      strModuleRepoPath = RepoPath
+      strModuleRepoPath = SrcPath
     End If
     
     ExportVbModule VBComp:=objVbModule, Path:=strModuleRepoPath
