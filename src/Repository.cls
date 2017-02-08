@@ -62,7 +62,7 @@ Private prop_ModuleExtToType As Dictionary
 Private prop_AllModuleFiles As Dictionary
 
 ' JUST VARIABLE TO STORE, NOT A PROPERTY
-Private g_blnRepoInit As Boolean
+Private m_blnRepoInit As Boolean
 
 ' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 '     EVENTS
@@ -72,7 +72,7 @@ Private g_blnRepoInit As Boolean
 ' Sets the g_blnRepoInit variable False so we know it's OK to run Init later.
 
 Private Sub Class_Initialize()
-  g_blnRepoInit = False
+  m_blnRepoInit = False
 End Sub
 
 
@@ -133,7 +133,7 @@ End Property
 ' TODO: probably need a class just for this at some point.
 Private Property Get ConfigData() As Dictionary
   If prop_ConfigData Is Nothing Then
-    Set prop_ConfigData = Utils.ReadJson(JsonPath:=ConfigFullPath)
+    Set prop_ConfigData = Utils.ReadJson(JsonPath:=ConfigFullName)
   End If
   Set ConfigData = prop_ConfigData
 End Property
@@ -365,10 +365,13 @@ End Property
 ' ===== Init ==================================================================
 ' Constructor for the class. Called from Factory.CreateRepository. Will create
 ' new object and also set default properties based on arguments. Will only run
-' once per object because of g_blnRepoInit variable.
+' once per object because of blnRepoInit variable.
 
 Public Sub Init(RepoDir As String)
-  RepoPath = RepoDir
+  If m_blnRepoInit = False Then
+    m_blnRepoInit = True
+    RepoPath = RepoDir
+  End If
 End Sub
 
 ' ===== UpdateCodeInRepo ======================================================
