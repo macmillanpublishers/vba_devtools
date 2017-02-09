@@ -1,0 +1,6 @@
+#!/bin/sh
+SCRIPT_DIR_BASH="$(readlink -f `dirname $0`)"
+echo "$SCRIPT_DIR_BASH"
+echo "Here's the dir: $PWD"
+PowerShell -NoProfile -ExecutionPolicy Bypass -Command "C:/Users/erica.warren/Documents/GitHub/vba_devtools/run_dev_macro.ps1 -macroName \"Dev.VbaTest\" -repoDir $PWD"
+git status
