@@ -2,9 +2,7 @@
 # Runs macro with Module.Function format if this script is named Module-Function.
 # bonus, if you use hyphen in script and add to PATH, you can run as that program
 SELF_NAME=`basename "$0"`
-echo "$SELF_NAME"
 MACRO_NAME="${SELF_NAME/-/.}"
-echo "$MACRO_NAME"
 SCRIPT_DIR_BASH="$(readlink -f `dirname $0`)"
 SCRIPT_DIR_WIN="${SCRIPT_DIR_BASH/#\/c/\C:}"
 
