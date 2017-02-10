@@ -1,4 +1,4 @@
-Attribute VB_Name = "Git"
+Attribute VB_Name = "dev"
 Option Explicit
 Option Base 1
 
@@ -24,10 +24,10 @@ Option Base 1
 '
 ' So be sure to export and commit often!
 
-
 ' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 '      PUBLIC PROCEDURES
 ' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 
 ' ===== VbaStatus =============================================================
@@ -38,16 +38,14 @@ Option Base 1
 ' ASSUMPTIONS
 ' You're working on code from file in local directory
 
-' PARAMS
-' WorkingDir[String]: full path to working dir, no trailing separator
-
 ' RETURNS: Boolean
-' Error Number. Not super sure how this will work but it's a place to start
+' True = exporting and copying was successful
+' False = not successful
 
 ' TODO:
 ' * Return more detailed info?
 
-Public Function VbaStatus(WorkingDir As String) As Long
+Public Function VbaStatus(WorkingDir As String) As Boolean
   Dim objStatusRepo As Repository
   Set objStatusRepo = Factory.CreateRepository(Path:=WorkingDir)
 
@@ -55,7 +53,7 @@ Public Function VbaStatus(WorkingDir As String) As Long
   objStatusRepo.UpdateCodeInRepo
 
 ' This isn't doing anything, but maybe we'll need to add error handling later
-  VbaStatus = Err.Number
+  VbaStatus = True
   
 End Function
 
@@ -68,9 +66,10 @@ End Function
 ' WorkingDir[String]: script must pass working directory
 
 ' RETURNS
-' Err.Number as Long
+' True = successful
+' False = unsuccessful
 
-Public Function VbaCheckout(WorkingDir As String) As Long
+Public Function VbaCheckout(WorkingDir As String) As Boolean
   Dim objCheckoutRepo As Repository
   Set objCheckoutRepo = Factory.CreateRepository(WorkingDir)
   
@@ -78,7 +77,7 @@ Public Function VbaCheckout(WorkingDir As String) As Long
   objCheckoutRepo.CopyRepoDocToLocal
 
 ' maybe useful later
-  VbaCheckout = Err.Number
+  VbaCheckout = True
   
 End Function
 
@@ -107,3 +106,6 @@ Public Function VbaMerge(WorkingDir As String) As Boolean
   VbaMerge = True
   
 End Function
+
+
+
