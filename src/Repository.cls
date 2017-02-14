@@ -530,7 +530,7 @@ Private Sub DocFileCopy(OriginFile As String, DestinationFile As String)
   blnOriginAddin = Utils.UnloadAddIn(strOriginFileAndExt)
   blnDestAddin = Utils.UnloadAddIn(strDestFileAndExt)
   
-  vba.FileCopy Source:=OriginFile, Destination:=DestinationFile
+  VBA.FileCopy Source:=OriginFile, Destination:=DestinationFile
   
   If blnOriginOpened = True Then
     Documents.Open (OriginFile)
