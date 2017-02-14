@@ -1,4 +1,4 @@
-Attribute VB_Name = "dev"
+Attribute VB_Name = "Git"
 Option Explicit
 Option Base 1
 
@@ -24,88 +24,82 @@ Option Base 1
 '
 ' So be sure to export and commit often!
 
+
 ' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 '      PUBLIC PROCEDURES
 ' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-
-' ===== VbaStatus =============================================================
-' Designed to be called from an external script that will pass working dir. If
-' this all goes according to plan, you can run this instead of git status, and
-' all local files/code will be exported to repo.
+' ===== VbaSync ===============================================================
+' Opens LOCAL copy of the Word template file for this repo, and opens VB editor.
 
 ' ASSUMPTIONS
 ' You're working on code from file in local directory
 
-' RETURNS: Boolean
-' True = exporting and copying was successful
-' False = not successful
-
-' TODO:
-' * Return more detailed info?
-
-Public Function VbaStatus(WorkingDir As String) As Boolean
-  Dim objStatusRepo As Repository
-  Set objStatusRepo = Factory.CreateRepository(Path:=WorkingDir)
-
-' Export code files to repo
-  objStatusRepo.UpdateCodeInRepo
-
-' This isn't doing anything, but maybe we'll need to add error handling later
-  VbaStatus = True
-  
-End Function
-
-' ===== VbaCheckout ===========================================================
-' Macro doc files is in two places ("repo" and "local"), this copies one to
-' overwrite the other. Designed to be called by external script. Right now need
-' to use AFTER git checkout and git pull, but might be able to incorporate later.
-
 ' PARAMS
-' WorkingDir[String]: script must pass working directory
+' WorkingDir[String]: full Windows path to working dir, no trailing separator
 
-' RETURNS
-' True = successful
-' False = unsuccessful
-
-Public Function VbaCheckout(WorkingDir As String) As Boolean
-  Dim objCheckoutRepo As Repository
-  Set objCheckoutRepo = Factory.CreateRepository(WorkingDir)
-  
-' Checkout means we changed file in repo, need to copy TO local
-  objCheckoutRepo.CopyRepoDocToLocal
-
-' maybe useful later
-  VbaCheckout = True
-  
-End Function
-
-
-' ===== VbaMerge ==============================================================
-' Call from a script that passes working directory. Right now you still need to
-' run git merge first, then run this macro after.
-
-' PARAMS
-' WorkingDir[String]: current working directory (should be repo)
-
-' RETURNS
-' True = successful
-' False = not
+' RETURNS: String
+' Error number and message if any. Errors roll up the stack until they hit an
+' On Error statement, so unhandled errors *should* end up here.
 
 ' TODO
-' incorporate actual git merge command
+' Add a "help" command that returns a string with each available command and
+' what it does. Eventually could even store commands in a JSON that we read
+' into a dictionary to loop through. Oh, could also use Application.Run to
+' run a macro from a string, and then we don't even have to edit this code
+' to add new commands, as long as all the basic things we want to do are
+' publically available functions.
 
-Public Function VbaMerge(WorkingDir As String) As Boolean
-  Dim objMergeRepo As Repository
-  Set objMergeRepo = Factory.CreateRepository(WorkingDir)
+Public Function VbaSync(WorkingDir As String, Cmd As String) As String
+   On Error GoTo Sync_Error
 
-' Merge might change files in repo, so we'll reimport them into the docs
-  objMergeRepo.UpdateCodeInDoc
+' Create Repository object for WordingDir
+  Dim objRepo As Repository
+  Set objRepo = Factory.CreateRepository(Path:=WorkingDir)
+
+' Run macros based on the Cmd sent to the script
+  Select Case Cmd
+    Case "status"
+      objRepo.UpdateCodeInRepo
+      
+    Case "checkout"
+      objRepo.CopyRepoDocToLocal
   
-  VbaMerge = True
-  
+    Case "merge"
+      objRepo.UpdateCodeInDoc
+      
+    Case Else
+      VbaSync = Cmd & " is not available in vba_devtools, please try again"
+      Exit Function
+  End Select
+
+Sync_Error:
+  VbaSync = Vba_Error
 End Function
 
 
+' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+'     PRIVATE PROCEDURES
+' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+' ===== Vba_Error =============================================================
+' Parse error object to return error number to calling script.
+
+' PARAMS
+' NONE: Only one Err object at a time so will just access current error properties
+
+' RETURNS: String
+' If error, returns number and description
+' If no error, returns success message
+
+' TODO
+' Might have to add Err.Clear for handled errors, not sure if it persists
+
+Private Function Vba_Error() As String
+  If Err.Number = 0 Then
+    Vba_Error = "SUCCESS: macro completed without error"
+  Else
+    Vba_Error = "VBA error " & Err.Number & ": " & Err.Description
+  End If
+End Function

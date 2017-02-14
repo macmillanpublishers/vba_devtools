@@ -250,7 +250,7 @@ Private Property Get SubmodulePaths() As Collection
       With objRegEx
         .Global = True  ' True = find all matches
         .MultiLine = True  ' True = start/end matches line by line
-        .Pattern = "^\tpath = (.*)$"
+        .Pattern = "^\tpath = (.*)[\r\n]+$"
         Set c_Matches = .Execute(strGitmodulesText)
       End With
     End If
@@ -265,7 +265,8 @@ Private Property Get SubmodulePaths() As Collection
       For Each objMatch In c_Matches
         strPath = RepoPath & Application.PathSeparator & _
           objMatch.SubMatches.Item(0)
-  '      Debug.Print strPath
+'        Debug.Print "|" & strPath & "|"
+        strPath = Trim(strPath)
         prop_SubmodulePaths.Add strPath
       Next objMatch
     End If
@@ -332,8 +333,9 @@ Private Property Get ExtFromModuleType() As Dictionary
     With prop_ExtFromModuleType
       .Add vbext_ct_ClassModule, "cls"
       .Add vbext_ct_Document, "cls"
-      .Add vbext_ct_MSForm, "frm"
       .Add vbext_ct_StdModule, "bas"
+' Don't export userforms, .frx gets tracked every time
+'      .Add vbext_ct_MSForm, "frm"
     End With
   End If
   Set ExtFromModuleType = prop_ExtFromModuleType
@@ -351,8 +353,9 @@ Private Property Get ModuleTypeFromExt() As Dictionary
     With prop_ModuleTypeFromExt
       .Add "cls", vbext_ct_ClassModule
       .Add "doccls", vbext_ct_Document
-      .Add "frm", vbext_ct_MSForm
       .Add "bas", vbext_ct_StdModule
+' Removing userforms, because .frx binary file is tracked as modified every time
+'      .Add "frm", vbext_ct_MSForm
     End With
   End If
   Set ModuleTypeFromExt = prop_ModuleTypeFromExt
@@ -505,6 +508,11 @@ Private Sub DocFileCopy(OriginFile As String, DestinationFile As String)
   Dim blnDestinationOpened As Boolean
   Dim blnVbEditorOpen As Boolean
 
+' If this code though, don't try to copy while code is running
+  If OriginFile = ThisDocument.FullName Or DestinationFile = ThisDocument.FullName Then
+    Exit Sub
+  End If
+
 ' Save and close relevant docs, record if were open
   blnOriginOpened = DocSaveClose(OriginFile)
   blnDestinationOpened = DocSaveClose(DestinationFile)
@@ -520,9 +528,9 @@ Private Sub DocFileCopy(OriginFile As String, DestinationFile As String)
   strDestFileAndExt = Utils.GetFileName(DestinationFile)
   
   blnOriginAddin = Utils.UnloadAddIn(strOriginFileAndExt)
-  blnDestAddin = Utils.UnloadAddIn(strOriginFileAndExt)
+  blnDestAddin = Utils.UnloadAddIn(strDestFileAndExt)
   
-  VBA.FileCopy Source:=OriginFile, Destination:=DestinationFile
+  vba.FileCopy Source:=OriginFile, Destination:=DestinationFile
   
   If blnOriginOpened = True Then
     Documents.Open (OriginFile)
@@ -558,7 +566,8 @@ Private Function DocSaveClose(Path As String) As Boolean
   Dim blnFileOpen As Boolean
   blnFileOpen = Utils.IsOpen(Path)
   
-  If Utils.GetFileName(Path) = ThisDocument.Name Then
+' But if it's this code here don't close it!
+  If Path = ThisDocument.FullName Then
     Documents(Path).Save
   Else
     If blnFileOpen = True Then
@@ -714,12 +723,14 @@ End Sub
 
 
 ' ===== ExportCodeFiles =======================================================
-' Exports all VBA components (i.e., .bas, .cls, and .frm files) from the local
-' doc/template to this repo. Handles all the submodule stuff.
-' Repo must be set up as described at top.
+' Exports VBA components (i.e., .bas and .cls files) from the local doc/template
+' to this repo. Handles all the submodule stuff. Repo must be set up as described
+' at top.
 
 ' ASSUMPTIONS:
 ' Local doc file has already been validated and opened.
+' Does NOT export userforms (.frm) b/c the .frx binary file is always tracked as
+' modified even when nothing has changed. Will have to export those manually for now
 
 Private Sub ExportCodeFiles()
   Dim objVbProj As VBIDE.VBProject
@@ -735,11 +746,18 @@ Private Sub ExportCodeFiles()
       strModuleRepoPath = SubmoduleFiles(objVbModule.Name)
     Else
       strFileExt = ExtFromModuleType(objVbModule.Type)
-      strModuleRepoPath = SrcPath & Application.PathSeparator & objVbModule.Name _
-        & "." & strFileExt
+      If strFileExt <> vbNullString Then
+        strModuleRepoPath = SrcPath & Application.PathSeparator & objVbModule.Name _
+          & "." & strFileExt
+      Else
+        strModuleRepoPath = vbNullString
+      End If
     End If
     
-    ExportVbModule VBComp:=objVbModule, FullPath:=strModuleRepoPath
+  ' If module is a userform we've set save path to null, so don't try to export
+    If strModuleRepoPath <> vbNullString Then
+      ExportVbModule VBComp:=objVbModule, FullPath:=strModuleRepoPath
+    End If
   Next objVbModule
 End Sub
 

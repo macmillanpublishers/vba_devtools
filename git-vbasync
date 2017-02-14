@@ -1,36 +1,16 @@
-#!/bin/sh
-
-# DESCRIPTION:
-# Adds a git command that can run a Word macro
-# 
-# USE:
-# Save this script's dir to the PATH to run as "git vbasync" directly.
-# Otherwise use full path to script
-#
-# EXAMPLE:
-# Command line: $ git vbasync status
-# Macro: Public Function Git.Vba_Status(WorkingDir As String) As String
-# 
-# INPUTS:
-# "command" for the macro to run - just a string passed to the macro 
-#
-# RETURNS:
-# Any errors from VBA macro
-# git status following VBA macro run
-#
-# ASSUMPTIONS:
-# Macro template from this repo saved in local Word STARTUP dir
-# Config file from this repo saved in STARTUP/orgname/repo-name
-# "WordStartup" environment variable added
-# Macro template contains module named "Git"
-# Module contains public function named "VbaSync"
-
+#!/bin/bash
 
 SELF_NAME=`basename "$0"`
 MACRO_NAME="${SELF_NAME/-/.}"
 CMD_NAME="$1"
 SCRIPT_DIR_BASH="$(readlink -f `dirname $0`)"
 SCRIPT_DIR_WIN="${SCRIPT_DIR_BASH/#\/c/\C:}"
+CURRENT_DIR_WIN="${PWD/#\/c/\C:}"
 
-PowerShell -NoProfile -ExecutionPolicy Bypass -Command "C:/Users/erica.warren/Documents/GitHub/vba_devtools/run_dev_macro.ps1 -macroName $MACRO_NAME -cmd $CMD_NAME -repoDir ${PWD/#\/c/\C:}" < /dev/null
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR_WIN/run_dev_macro.ps1" -macroName "$MACRO_NAME" -cmd "$CMD_NAME" -repoDir "$CURRENT_DIR_WIN" < /dev/null
 git status
+
+if [ "$CURRENT_DIR_WIN" == "$SCRIPT_DIR_WIN" ] 
+	then
+		echo "NOTE! Can't copy Word template that is running code. Do it manually!"
+fi
