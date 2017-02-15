@@ -97,9 +97,11 @@ End Function
 ' Might have to add Err.Clear for handled errors, not sure if it persists
 
 Private Function Vba_Error() As String
+  Vba_Error = vbNewLine
   If Err.Number = 0 Then
-    Vba_Error = "SUCCESS: macro completed without error"
+    Vba_Error = Vba_Error & "SUCCESS: macro completed without error"
   Else
-    Vba_Error = "VBA error " & Err.Number & ": " & Err.Description
+    Vba_Error = Vba_Error & "VBA error " & Err.Number & ": " & Err.Description
   End If
+  Vba_Error = Vba_Error & vbNewLine
 End Function

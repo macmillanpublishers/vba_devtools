@@ -1,5 +1,6 @@
 #!/bin/bash
 
+echo
 SELF_NAME=`basename "$0"`
 MACRO_NAME="${SELF_NAME/-/.}"
 CMD_NAME="$1"
@@ -12,5 +13,6 @@ git status
 
 if [ "$CURRENT_DIR_WIN" == "$SCRIPT_DIR_WIN" ] 
 	then
+		echo
 		echo "NOTE! Can't copy Word template that is running code. Do it manually!"
 fi
