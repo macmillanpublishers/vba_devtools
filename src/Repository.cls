@@ -541,11 +541,11 @@ Private Sub DocFileCopy(OriginFile As String, DestinationFile As String)
   End If
   
   If blnOriginAddin = True Then
-    Utils.LoadAddIn AddinName:=strOriginFileAndExt, DisableAutoExec:=True
+    Utils.LoadAddIn AddinName:=strOriginFileAndExt, DisableAutoMacros:=True
   End If
   
   If blnDestAddin = True Then
-    Utils.LoadAddIn AddinName:=strDestFileAndExt, DisableAutoExec:=True
+    Utils.LoadAddIn AddinName:=strDestFileAndExt, DisableAutoMacros:=True
   End If
   
   Application.VBE.MainWindow.Visible = blnVbEditorOpen
