@@ -31,10 +31,11 @@ Option Base 1
 
 
 ' ===== VbaSync ===============================================================
-' Opens LOCAL copy of the Word template file for this repo, and opens VB editor.
+' Use run_dev_macro.ps1 to call this function. Args passed will run different
+' macros!
 
 ' ASSUMPTIONS
-' You're working on code from file in local directory
+' You're working on code from a file in local directory, not from the repo.
 
 ' PARAMS
 ' WorkingDir[String]: full Windows path to working dir, no trailing separator
