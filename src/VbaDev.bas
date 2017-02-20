@@ -6,40 +6,27 @@ Option Explicit
 ' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 ' ===== RunValidator ==========================================================
-' Run Validator.Launch macro solo, without whole validator toolchain. Copies
-' test file to a tmp directory (in same dir as orig file) and runs macro on that
-' so we don't override the orig file. Also gets log file set up.
+' Preps tmp file for Validator.Launch macro solo, w/o whole validator toolchain:
+' Copies test file to a tmp directory (in same dir as orig file), checks for
+' book_info.json and creates if missing.
 
 ' ASSUMPTIONS
-' You have the bookmaker.dotm file saved in STARTUP.
 ' This is called from powershell run_dev_macro script.
 
 ' PARAMS
-' ArrayParam: Pass as an array so we can use same powershell. Array only needs
-' 1 element, the full windows path to original document file.
+' OrigFullName: the full windows path to original document file.
 
 ' RETURNS
-' Error messages
+' String path to tmp file
 
 ' TODO
 ' Move some of the tmp file stuff to Word-template and implement for users.
-Sub testit()
-  Dim a_testfile(0 To 0) As String
-  a_testfile(0) = ActiveDocument.FullName
-  Dim stroutput As String
-  stroutput = RunValidator(a_testfile)
-  Debug.Print stroutput
-End Sub
 
-Public Function RunValidator(ArrayParam As Variant) As String
-  On Error GoTo RunValidatorError
-' Get parameter into variable
-  Dim strOrigFullName As String
-  strOrigFullName = ArrayParam(0)
-  
+Public Function PrepValidator(OrigFullName As String) As String
 ' Save and close, if it was open, record origin state
+  Debug.Print "Running!"
   Dim blnOrigWasOpen As Boolean
-  blnOrigWasOpen = Utils.DocSaveClose(strOrigFullName)
+  blnOrigWasOpen = Utils.DocSaveClose(OrigFullName)
   
 ' Create paths to tmp dir, log file, etc.
   Dim strOrigPath As String
@@ -47,16 +34,13 @@ Public Function RunValidator(ArrayParam As Variant) As String
   Dim strNormNameOnly As String
   Dim strTmpNameTail As String
   
-  strOrigPath = Utils.GetPath(strOrigFullName)
-  strNormName = NormalizeFileName(Utils.GetFileName(strOrigFullName))
+  strOrigPath = Utils.GetPath(OrigFullName)
+  strNormName = NormalizeFileName(Utils.GetFileName(OrigFullName))
   strNormNameOnly = Utils.GetFileNameOnly(strNormName)
   strTmpNameTail = "_tmp_" & strNormName
   
   Dim strTmpPath As String
-  Dim strLogFullName As String
-
   strTmpPath = strOrigPath & Application.PathSeparator & "MacroTmp_" & strNormNameOnly
-  strLogFullName = strTmpPath & Application.PathSeparator & "LOG_" & strNormNameOnly & ".txt"
 
   Dim strTmpName As String
   Dim strTmpFullName As String
@@ -64,34 +48,28 @@ Public Function RunValidator(ArrayParam As Variant) As String
   If Utils.IsItThere(strTmpPath) = False Then
     MkDir strTmpPath
     strTmpName = "00" & strTmpNameTail
+    strTmpFullName = strTmpPath & Application.PathSeparator & strTmpName
   Else
     Dim A As Long
     For A = 0 To 99
       strTmpName = VBA.Format(A, "00") & strTmpNameTail
-      If Utils.IsItThere(strTmpName) = False Then
+      strTmpFullName = strTmpPath & Application.PathSeparator & strTmpName
+      If Utils.IsItThere(strTmpFullName) = False Then
         Exit For
       End If
     Next A
   End If
   
-  strTmpFullName = strTmpPath & Application.PathSeparator & strTmpName
-  FileCopy strOrigFullName, strTmpFullName
+  FileCopy OrigFullName, strTmpFullName
   
 ' Validator needs a file called book_info.json in same dir as file.
   Call CheckBookInfo(strOrigPath, strTmpPath)
   
-  Call Validator.Launch(strTmpFullName, strLogFullName)
+' Return full path to tmp file
+  PrepValidator = strTmpFullName
   
-  If blnOrigWasOpen = True Then
-    Documents.Open (strOrigFullName)
-  End If
+  Debug.Print Err.Number
 
-RunValidatorError:
-  If Err.Number <> 0 Then
-    RunValidator = Err.Number & ": " & Err.Description
-  Else
-    RunValidator = "SUCCESS: macro run without errors"
-  End If
 End Function
 
 
@@ -164,18 +142,20 @@ Private Sub CheckBookInfo(SourceDir As String, TmpDir As String)
   If Utils.IsItThere(strOrigInfoFullName) = True Then
     FileCopy strOrigInfoFullName, strTmpInfoFullName
   Else
-    Dim dictInfoJson As Dictionary
-    Set dictInfoJson = New Dictionary
-    
-    dictInfoJson.Add "production_editor", "Eric Meyer"
-    dictInfoJson.Add "production_manager", "Eric Gladstone"
-    dictInfoJson.Add "work_id", "86877"
-    dictInfoJson.Add "isbn", "9781250087058"
-    dictInfoJson.Add "title", "The Netanyahu Years"
-    dictInfoJson.Add "author", "Ben Caspit translated by Ora Cummings"
-    dictInfoJson.Add "product_type", "Book"
-    dictInfoJson.Add "imprint", "Thomas Dunne Books"
-    
-    Utils.WriteJson strTmpInfoFullName, dictInfoJson
+    If Utils.IsItThere(strTmpInfoFullName) = False Then
+      Dim dictInfoJson As Dictionary
+      Set dictInfoJson = New Dictionary
+      
+      dictInfoJson.Add "production_editor", "Eric Meyer"
+      dictInfoJson.Add "production_manager", "Eric Gladstone"
+      dictInfoJson.Add "work_id", "86877"
+      dictInfoJson.Add "isbn", "9781250087058"
+      dictInfoJson.Add "title", "The Netanyahu Years"
+      dictInfoJson.Add "author", "Ben Caspit translated by Ora Cummings"
+      dictInfoJson.Add "product_type", "Book"
+      dictInfoJson.Add "imprint", "Thomas Dunne Books"
+      
+      Utils.WriteJson strTmpInfoFullName, dictInfoJson
+    End If
   End If
 End Sub

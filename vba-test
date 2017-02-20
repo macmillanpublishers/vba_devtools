@@ -5,13 +5,14 @@ SCRIPT_DIR_BASH="$(readlink -f `dirname $0`)"
 SCRIPT_DIR_WIN="$(cygpath -w $SCRIPT_DIR_BASH)"
 PREP_MACRO_NAME="VbaDev.PrepValidator"
 ORIG_FILE_BASH="$1"
-echo "$ORIG_FILE_BASH"
-ORIG_FILE_WIN="$(cygpath -w $ORIG_FILE_BASH)"
-echo "$ORIG_FILE_WIN"
+ORIG_FILE_WIN="$(cygpath -w "$ORIG_FILE_BASH")"
+echo "Running $PREP_MACRO_NAME on $ORIG_FILE_WIN"
+TMP_FILE=$(PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$PREP_MACRO_NAME" "$ORIG_FILE_WIN")
+echo
+echo tmp file returned "$TMP_FILE"
 
-TMP_FILE="$(PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$PREP_MACRO_NAME" "$ORIG_FILE_WIN" < /dev/null)"
-LOG_FILE="log.txt"
-
-TEST_MACRO_NAME="Validator.Launch"
-
-PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$TEST_MACRO_NAME" "$TMP_FILE" "$LOG_FILE" < /dev/null
+#LOG_FILE="log.txt"
+#TEST_MACRO_NAME="Validator.Launch"
+#echo 
+#echo "Running $TEST_MACRO_NAME on $TMP_FILE"
+#PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$TEST_MACRO_NAME" "$TMP_FILE" "$LOG_FILE" < /dev/null
