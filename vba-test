@@ -1,0 +1,19 @@
+#!/bin/bash
+
+echo
+SELF_NAME=`basename "$0"`
+MACRO_NAME="${SELF_NAME/-/.}"
+CMD_NAME="$1"
+SCRIPT_DIR_BASH="$(readlink -f `dirname $0`)"
+SCRIPT_DIR_WIN="$(cygpath -w $SCRIPT_DIR_BASH)"
+CURRENT_DIR_WIN="$(cygpath -w $PWD)"
+
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$MACRO_NAME" "$CURRENT_DIR_WIN" "$CMD_NAME" < /dev/null
+echo
+git status
+
+if [ "$CURRENT_DIR_WIN" == "$SCRIPT_DIR_WIN" ] 
+	then
+		echo
+		echo "NOTE! Can't copy Word template that is running code. Do it manually!"
+fi
