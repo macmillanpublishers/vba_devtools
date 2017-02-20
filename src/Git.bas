@@ -38,7 +38,12 @@ Option Base 1
 ' You're working on code from a file in local directory, not from the repo.
 
 ' PARAMS
-' WorkingDir[String]: full Windows path to working dir, no trailing separator
+' ArgsArray: Base 0 array of argument values. NOT using named parameters, so we
+' can use the same powershell script for all macros, regardless of num. of args.
+' This one should pass the following:
+
+' [0]: Full Windows-format path to git repo
+' [1]: Name of the vba 'command' to run (i.e., from Select stmt below)
 
 ' RETURNS: String
 ' Error number and message if any. Errors roll up the stack until they hit an
@@ -52,8 +57,15 @@ Option Base 1
 ' to add new commands, as long as all the basic things we want to do are
 ' publically available functions.
 
-Public Function VbaSync(WorkingDir As String, Cmd As String) As String
+Public Function VbaSync(ArgsArray As Variant) As String
    On Error GoTo Sync_Error
+
+' Pull args into variables
+  Dim WorkingDir As String
+  Dim Cmd As String
+  
+  WorkingDir = ArgsArray(0)
+  Cmd = ArgsArray(1)
 
 ' Create Repository object for WordingDir
   Dim objRepo As Repository
