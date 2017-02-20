@@ -387,7 +387,7 @@ End Sub
 Public Sub UpdateCodeInRepo()
 ' Make sure local doc is open
   Dim blnUpdateDocOpen As Boolean
-  blnUpdateDocOpen = DocOpenSave(Path:=LocalDocFullName)
+  blnUpdateDocOpen = Utils.DocOpenSave(Path:=LocalDocFullName)
 
 ' Export code modules from local doc to repo
   ExportCodeFiles
@@ -409,7 +409,7 @@ End Sub
 Public Sub UpdateCodeInDoc()
 ' Make sure repo doc is open (and record state so we can return later)
   Dim blnRepoDocOpen As Boolean
-  blnRepoDocOpen = DocOpenSave(Path:=RepoDocFullName)
+  blnRepoDocOpen = Utils.DocOpenSave(Path:=RepoDocFullName)
 
 ' Import code from repo to doc
   ImportCodeToDoc
@@ -430,7 +430,7 @@ End Sub
 ' validates the file and closes before copying, and re-opens if was open before
 
 Public Sub CopyLocalDocToRepo()
-  DocFileCopy LocalDocFullName, RepoDocFullName
+  Utils.DocFileCopy LocalDocFullName, RepoDocFullName
 End Sub
 
 
@@ -438,7 +438,7 @@ End Sub
 ' Same as above but reversed.
 
 Public Sub CopyRepoDocToLocal()
-  DocFileCopy RepoDocFullName, LocalDocFullName
+  Utils.DocFileCopy RepoDocFullName, LocalDocFullName
 End Sub
 
 
@@ -492,114 +492,6 @@ Private Function GetModulesInDir(TargetDir As String) As Dictionary
   ' Get next file in dir for loop
     strFileAndExt = Dir()
   Loop
-End Function
-
-' ===== DocFileCopy ===========================================================
-' Copies a doc from Origin to Destination. Makes sure files are closed before
-' copying, and reopens docs if they were open to start. DestinationFile will
-' be overwritten. Displays VBE if it was open before.
-
-' PARAMS
-' OriginFile[String]: full path to file to copy from
-' DestinationFile[String]: full path to file to copy to
-
-Private Sub DocFileCopy(OriginFile As String, DestinationFile As String)
-  Dim blnOriginOpened As Boolean
-  Dim blnDestinationOpened As Boolean
-  Dim blnVbEditorOpen As Boolean
-
-' If this code though, don't try to copy while code is running
-  If OriginFile = ThisDocument.FullName Or DestinationFile = ThisDocument.FullName Then
-    Exit Sub
-  End If
-
-' Save and close relevant docs, record if were open
-  blnOriginOpened = DocSaveClose(OriginFile)
-  blnDestinationOpened = DocSaveClose(DestinationFile)
-  blnVbEditorOpen = Application.VBE.MainWindow.Visible
-
-' Check if loaded as an Add-In, and if so unload it
-  Dim blnOriginAddin As Boolean
-  Dim blnDestAddin As Boolean
-  Dim strOriginFileAndExt As String
-  Dim strDestFileAndExt As String
-  
-  strOriginFileAndExt = Utils.GetFileName(OriginFile)
-  strDestFileAndExt = Utils.GetFileName(DestinationFile)
-  
-  blnOriginAddin = Utils.UnloadAddIn(strOriginFileAndExt)
-  blnDestAddin = Utils.UnloadAddIn(strDestFileAndExt)
-  
-  VBA.FileCopy Source:=OriginFile, Destination:=DestinationFile
-  
-  If blnOriginOpened = True Then
-    Documents.Open (OriginFile)
-  End If
-  
-  If blnDestinationOpened = True Then
-    Documents.Open (DestinationFile)
-  End If
-  
-  If blnOriginAddin = True Then
-    Utils.LoadAddIn AddinName:=strOriginFileAndExt, DisableAutoMacros:=True
-  End If
-  
-  If blnDestAddin = True Then
-    Utils.LoadAddIn AddinName:=strDestFileAndExt, DisableAutoMacros:=True
-  End If
-  
-  Application.VBE.MainWindow.Visible = blnVbEditorOpen
-End Sub
-
-
-' ===== DocSaveClose ==========================================================
-' Makes sure document is saved and closed, including various validation things.
-
-' PARAMS
-' Path[String]: Full path to file w/ filename and ext
-
-' RETURNS
-' True = Doc was originally open
-' False = Doc was originally closed
-
-Private Function DocSaveClose(Path As String) As Boolean
-  Dim blnFileOpen As Boolean
-  blnFileOpen = Utils.IsOpen(Path)
-  
-' But if it's this code here don't close it!
-  If Path = ThisDocument.FullName Then
-    Documents(Path).Save
-  Else
-    If blnFileOpen = True Then
-      Documents(Path).Close SaveChanges:=wdSaveChanges
-    End If
-  End If
-  
-  DocSaveClose = blnFileOpen
-
-End Function
-
-
-' ===== DocOpenSave ===========================================================
-' Makes sure document is opened and saved.
-
-' PARAMS
-' Path[String]: Full path to file with filename and ext
-
-' RETURNS
-' True = Doc was originally open
-' False = Doc was originally closed
-
-Private Function DocOpenSave(Path As String) As Boolean
-  Dim blnFileOpen As Boolean
-  blnFileOpen = Utils.IsOpen(Path)
-  
-  If blnFileOpen = False Then
-    Documents.Open Path
-  End If
-  
-  DocOpenSave = blnFileOpen
-
 End Function
 
 
