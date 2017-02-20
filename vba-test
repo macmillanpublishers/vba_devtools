@@ -1,19 +1,17 @@
 #!/bin/bash
 
 echo
-SELF_NAME=`basename "$0"`
-MACRO_NAME="${SELF_NAME/-/.}"
-CMD_NAME="$1"
 SCRIPT_DIR_BASH="$(readlink -f `dirname $0`)"
 SCRIPT_DIR_WIN="$(cygpath -w $SCRIPT_DIR_BASH)"
-CURRENT_DIR_WIN="$(cygpath -w $PWD)"
+PREP_MACRO_NAME="VbaDev.PrepValidator"
+ORIG_FILE_BASH="$1"
+echo "$ORIG_FILE_BASH"
+ORIG_FILE_WIN="$(cygpath -w $ORIG_FILE_BASH)"
+echo "$ORIG_FILE_WIN"
 
-PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$MACRO_NAME" "$CURRENT_DIR_WIN" "$CMD_NAME" < /dev/null
-echo
-git status
+TMP_FILE="$(PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$PREP_MACRO_NAME" "$ORIG_FILE_WIN" < /dev/null)"
+LOG_FILE="log.txt"
 
-if [ "$CURRENT_DIR_WIN" == "$SCRIPT_DIR_WIN" ] 
-	then
-		echo
-		echo "NOTE! Can't copy Word template that is running code. Do it manually!"
-fi
+TEST_MACRO_NAME="Validator.Launch"
+
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$TEST_MACRO_NAME" "$TMP_FILE" "$LOG_FILE" < /dev/null
