@@ -22,8 +22,9 @@ Option Explicit
 ' TODO
 ' Move some of the tmp file stuff to Word-template and implement for users.
 
-Public Function PrepValidator(OrigFullName As String) As String
+Public Function PrepValidator(OrigFullName As String) As Variant
   On Error GoTo PrepValidatorError
+
 ' Save and close, if it was open, record origin state
   Dim blnOrigWasOpen As Boolean
   blnOrigWasOpen = Utils.DocSaveClose(OrigFullName)
@@ -67,7 +68,13 @@ Public Function PrepValidator(OrigFullName As String) As String
   
 ' Return full path to tmp file
 '  Debug.Print strTmpFullName
-  PrepValidator = strTmpFullName
+  
+' Return arguments for Validator.Launch as a single string ready to go
+  Dim a_strReturnPaths(0 To 1) As String
+  
+  a_strReturnPaths(0) = strTmpFullName
+  a_strReturnPaths(1) = strTmpPath & Application.PathSeparator & "LOG.txt"
+  PrepValidator = a_strReturnPaths
   Exit Function
   
 PrepValidatorError:

@@ -7,11 +7,14 @@ PREP_MACRO_NAME="VbaDev.PrepValidator"
 ORIG_FILE_BASH="$1"
 ORIG_FILE_WIN="$(cygpath -w "$ORIG_FILE_BASH")"
 echo "Running $PREP_MACRO_NAME on $ORIG_FILE_WIN"
-TMP_FILE="$(PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$PREP_MACRO_NAME" "$ORIG_FILE_WIN" < /dev/null)"
-echo "${TMP_FILE}"
 
-#LOG_FILE="log.txt"
-#TEST_MACRO_NAME="Validator.Launch"
-#echo 
-#echo "Running $TEST_MACRO_NAME on $TMP_FILE"
-#PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$TEST_MACRO_NAME" "$TMP_FILE" "$LOG_FILE" < /dev/null
+MACRO_OUTPUT="$(PowerShell.exe -NoProfile -ExecutionPolicy Bypass "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$PREP_MACRO_NAME" "$ORIG_FILE_WIN" < /dev/null)"
+
+# split output into array, [0] is file, [1] is log file.
+IFS=$'\n' 
+read -rd '' -a MACRO_ARGS <<< "$MACRO_OUTPUT"
+unset IFS
+
+TEST_MACRO_NAME="Validator.Launch"
+echo "Running $TEST_MACRO_NAME on ${MACRO_ARGS[0]}"
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$TEST_MACRO_NAME" "${MACRO_ARGS[0]}" "${MACRO_ARGS[1]}" < /dev/null
