@@ -7,9 +7,8 @@ PREP_MACRO_NAME="VbaDev.PrepValidator"
 ORIG_FILE_BASH="$1"
 ORIG_FILE_WIN="$(cygpath -w "$ORIG_FILE_BASH")"
 echo "Running $PREP_MACRO_NAME on $ORIG_FILE_WIN"
-TMP_FILE=$(PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$PREP_MACRO_NAME" "$ORIG_FILE_WIN")
-echo
-echo tmp file returned "$TMP_FILE"
+TMP_FILE=`$(PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR_WIN/run_dev_macro.ps1" "$PREP_MACRO_NAME" "$ORIG_FILE_WIN")`
+echo "${TMP_FILE}"
 
 #LOG_FILE="log.txt"
 #TEST_MACRO_NAME="Validator.Launch"
