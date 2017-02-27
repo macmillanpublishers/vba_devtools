@@ -23,11 +23,11 @@ Option Explicit
 ' Move some of the tmp file stuff to Word-template and implement for users.
 
 Public Function PrepValidator(OrigFullName As String) As String
+  On Error GoTo PrepValidatorError
 ' Save and close, if it was open, record origin state
-  Debug.Print "Running!"
   Dim blnOrigWasOpen As Boolean
   blnOrigWasOpen = Utils.DocSaveClose(OrigFullName)
-  
+
 ' Create paths to tmp dir, log file, etc.
   Dim strOrigPath As String
   Dim strNormName As String
@@ -66,12 +66,41 @@ Public Function PrepValidator(OrigFullName As String) As String
   Call CheckBookInfo(strOrigPath, strTmpPath)
   
 ' Return full path to tmp file
+'  Debug.Print strTmpFullName
   PrepValidator = strTmpFullName
+  Exit Function
   
-  Debug.Print Err.Number
-
+PrepValidatorError:
+' If error occurs, return error code & descrption.
+  PrepValidator = Vba_Error
 End Function
 
+' ===== Vba_Error =============================================================
+' Parse error object to return error number to calling script.
+
+' PARAMS
+' NONE: Only one Err object at a time so will just access current error properties
+
+' RETURNS: String
+' If error, returns number and description
+' If no error, returns success message
+
+' TODO
+' Might have to add Err.Clear for handled errors, not sure if it persists
+
+Public Function Vba_Error() As String
+  Vba_Error = vbNewLine
+  If Err.Number = 0 Then
+    Vba_Error = Vba_Error & "SUCCESS: macro completed without error"
+  Else
+    Vba_Error = Vba_Error & "VBA error " & Err.Number & ": " & Err.Description
+  End If
+  Vba_Error = Vba_Error & vbNewLine
+End Function
+
+' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+'     PRIVATE PROCEDURES
+' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 ' ===== NormalizeFileName =====================================================
 ' Remove everything other than letters, numbers, underscores and hyphens from
@@ -159,3 +188,13 @@ Private Sub CheckBookInfo(SourceDir As String, TmpDir As String)
     End If
   End If
 End Sub
+
+' ===== TestRef ===============================================================
+' Just a simple macro for Powershell to test if it needs to pass arguments by
+' ref or not. Returns True if Powershell successfully passed any string as an arg
+
+Public Function TestRef(TestString As String) As Boolean
+  If TestString <> vbNullString Then
+    TestRef = True
+  End If
+End Function

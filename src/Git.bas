@@ -38,12 +38,8 @@ Option Base 1
 ' You're working on code from a file in local directory, not from the repo.
 
 ' PARAMS
-' ArgsArray: Base 0 array of argument values. NOT using named parameters, so we
-' can use the same powershell script for all macros, regardless of num. of args.
-' This one should pass the following:
-
-' [0]: Full Windows-format path to git repo
-' [1]: Name of the vba 'command' to run (i.e., from Select stmt below)
+' WorkingDir: Full Windows-format path to git repo
+' Cmd: Name of the vba 'command' to run (i.e., from Select stmt below)
 
 ' RETURNS: String
 ' Error number and message if any. Errors roll up the stack until they hit an
@@ -57,16 +53,11 @@ Option Base 1
 ' to add new commands, as long as all the basic things we want to do are
 ' publically available functions.
 
-Public Function VbaSync(ArgsArray As Variant) As String
-   On Error GoTo Sync_Error
-
-' Pull args into variables
-  Dim WorkingDir As String
-  Dim Cmd As String
-  
-  WorkingDir = ArgsArray(0)
-  Cmd = ArgsArray(1)
-
+Public Function VbaSync(WorkingDir As String, Cmd As String) As String
+  On Error GoTo Sync_Error
+  Debug.Print "Running " & Now
+  Debug.Print WorkingDir
+  Debug.Print Cmd
 ' Create Repository object for WordingDir
   Dim objRepo As Repository
   Set objRepo = Factory.CreateRepository(Path:=WorkingDir)
@@ -88,33 +79,9 @@ Public Function VbaSync(ArgsArray As Variant) As String
   End Select
 
 Sync_Error:
-  VbaSync = Vba_Error
+' Test Err object, if it's not 0 record error and return as string.
+  VbaSync = VbaDev.Vba_Error
 End Function
 
 
-' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-'     PRIVATE PROCEDURES
-' +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-' ===== Vba_Error =============================================================
-' Parse error object to return error number to calling script.
-
-' PARAMS
-' NONE: Only one Err object at a time so will just access current error properties
-
-' RETURNS: String
-' If error, returns number and description
-' If no error, returns success message
-
-' TODO
-' Might have to add Err.Clear for handled errors, not sure if it persists
-
-Private Function Vba_Error() As String
-  Vba_Error = vbNewLine
-  If Err.Number = 0 Then
-    Vba_Error = Vba_Error & "SUCCESS: macro completed without error"
-  Else
-    Vba_Error = Vba_Error & "VBA error " & Err.Number & ": " & Err.Description
-  End If
-  Vba_Error = Vba_Error & vbNewLine
-End Function
