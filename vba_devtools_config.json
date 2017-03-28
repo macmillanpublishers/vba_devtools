@@ -1,14 +1,25 @@
 {
-	"extension": "dotm",
+	"fileName": "vba_devtools"
 	"version": {
 		"major": 0,
 		"minor": 1,
 		"patch": 0
 	},
-	"location": {
-		"user": "WordStartup",
-		"server": "WordStartup"
-	},
-	"expandLocation": false,
-	"installType": "server"
+	"remoteURL": "https://raw.githubusercontent.com",
+	"organization": "macmillanpublishers",
+	"repoName": "vba_devtools",
+	"currentBranch": "master",
+	"pathToFile": "",
+	"extension": "dotm",
+	"localInstall": {
+		"current": "server",
+		"user": {
+			"environmentVar": "WordStartup",
+			"useFullPath": false
+		},
+		"server": {
+			"environmentVar": "WordStartup",
+			"useFullPath": false
+		},
+	}
 }
