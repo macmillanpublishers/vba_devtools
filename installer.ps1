@@ -42,8 +42,6 @@ $configName = ($repoName + "_config.json")
 $configRepoFullName = ($PSScriptRoot + "\" + $configName)
 # path to config in startup
 $configStartupFullName = ($startupDir + "\" + $configName)
-# template file name
-$templateName = ($repoName + ".dotm")
 
 
 # Read config file
@@ -57,21 +55,26 @@ IF([string]::IsNullOrEmpty($installType)) {
            
 } else {            
     # Check that the value exists in the config file
-    if ($config.Get_Item("location").ContainsKey("$installType") -eq $false) {
+    if ($config.Get_Item("localInstall").ContainsKey("$installType") -eq $false) {
         Write-Warning "That install type doesn't exist in the config file."
         Break    
     }          
 }
 
 Write-Host "Updating config file..."
-# Add installType to local config file
-$config["installType"] = $installType
+# Add current installed location to local config file
+$config["localInstall"]["current"] = $installType
 
 # Convert back to a string and write to startup
 $content = ConvertTo-Json20 $config
 [IO.File]::WriteAllLines($configStartupFullName, $content)
 
 # Copy devtools template to startup too
+# get file type
+$ext = $config["extension"]
+# template file name
+$templateName = ($repoName + ".$ext")
+
 Copy-Item "$PSScriptRoot\$templateName" "$startupDir\$templateName"
 
 Write-Host "Setting environment variables..."

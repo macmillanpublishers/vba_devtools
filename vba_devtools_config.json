@@ -1,5 +1,5 @@
 {
-	"fileName": "vba_devtools"
+	"fileName": "vba_devtools",
 	"version": {
 		"major": 0,
 		"minor": 1,
@@ -20,6 +20,6 @@
 		"server": {
 			"environmentVar": "WordStartup",
 			"useFullPath": false
-		},
+		}
 	}
 }

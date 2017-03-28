@@ -163,7 +163,7 @@ End Property
 ' Returns the InstallType from the vba_devtools config file. Requires WordStartup
 ' is saved as an environment variable.
 
-' TODO: create enum for return options.
+' TODO: make more generic for all files to read config.
 
 Private Property Get InstallType() As String
   If prop_InstallType = vbNullString Then
@@ -175,7 +175,7 @@ Private Property Get InstallType() As String
   ' Read JSON config into Dictionary
     Dim dictDevConfig As Dictionary
     Set dictDevConfig = Utils.ReadJson(JsonPath:=strDevConfigFullName)
-    prop_InstallType = dictDevConfig("installType")
+    prop_InstallType = dictDevConfig("localInstall")("current")
   End If
   InstallType = prop_InstallType
 End Property
@@ -187,7 +187,7 @@ Private Property Get LocalDocPath() As String
   If prop_LocalDocPath = vbNullString Then
   ' Access "location" value (which should = an env. variable)
     Dim strLocationEnv As String
-    strLocationEnv = ConfigData("location")(InstallType)
+    strLocationEnv = ConfigData("localInstall")(InstallType)("environmentVar")
   
   ' Get full path to that dir from env variables
     prop_LocalDocPath = Environ(strLocationEnv)
