@@ -457,7 +457,7 @@ End Sub
 ' that at some point if we need to)
 
 ' PARAMS
-' TargetDir[String]: The directory we're looking in, no training slash
+' TargetDir[String]: The directory we're looking in, no trailing slash
 
 ' RETURNS
 ' Dictionary with keys = file name without extension, value = full path to file
@@ -589,11 +589,14 @@ Private Sub ImportCodeToDoc()
 ' Loop through all modules in project, delete any that are already in repo
   Dim objVbModule As VBIDE.VBComponent
   For Each objVbModule In colVbComponents
-  ' We need to treat ThisDocument class separately b/c can't delete
-    If objVbModule.Name = "ThisDocument" Then
-      ClearThisDocument ThisDocModule:=objVbModule
-    Else
-      colVbComponents.Remove objVbModule
+  ' Only delete those that we're going to import below.
+    If AllModuleFiles.Exists(objVbModule.Name) = True Then
+    ' We need to treat ThisDocument class separately b/c can't delete
+      If objVbModule.Name = "ThisDocument" Then
+        ClearThisDocument ThisDocModule:=objVbModule
+      Else
+        colVbComponents.Remove objVbModule
+      End If
     End If
   Next objVbModule
   
